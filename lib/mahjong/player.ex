@@ -1,6 +1,6 @@
 defmodule Mahjong.Player do
   alias Ecto.UUID
-  defstruct [:id, :position, :hand, :open_hand]
+  defstruct [:id, :position, :hand, :open_hand, :in_turn?]
 
   alias Mahjong.Tile
 
@@ -9,18 +9,17 @@ defmodule Mahjong.Player do
       id: UUID.autogenerate(),
       position: attrs[:position],
       hand: attrs[:hand],
-      open_hand: []
+      open_hand: [],
+      in_turn?: false
     }
   end
 
-  # def draw(player, tiles), do: player
   def draw(player, tile) do
     %{player | hand: [tile | player.hand]}
   end
 
-  # def draw(player, tiles), do: player
   def discard(player, tile) do
-    %{player | hand: List.delete(player.hand, tile)}
+    %{player | hand: List.delete(player.hand, tile), in_turn?: false}
   end
 
   def pong(player, tile) do
@@ -34,7 +33,9 @@ defmodule Mahjong.Player do
     %{player | hand: hand, open_hand: open_hand}
   end
 
-  # @doc with_tile should be the least value in hand wich used to chow
+  @doc """
+  `with_tile` should be the least value in hand which used to chow
+  """
   def chow(player, tile, with_tile) do
     # Ensure tiles are of the same suit
     if tile.suit != with_tile.suit do

@@ -1,8 +1,7 @@
 defmodule Mahjong.Game do
   use GenServer
 
-  alias Mahjong.Player
-  alias Mahjong.Deck
+  alias Mahjong.{Deck, Player}
 
   def join(game, player) do
     GenServer.call(game, {:join, player})
@@ -25,10 +24,6 @@ defmodule Mahjong.Game do
   end
 
   def action(game, player, action), do: GenServer.call(game, {player, action})
-  # def pong(game, player, :action), do: nil
-  # def kong(), do: nil
-  # def chow(), do: nil
-  # def eyes(), do: nil
 
   @impl true
   def init(_init_arg) do
@@ -46,7 +41,24 @@ defmodule Mahjong.Game do
         %{player | hand: hand}
       end)
 
-    state = {tiles, players}
+    [tile | left_tiles] = tiles
+
+    player =
+      Enum.shuffle(players)
+      |> List.first()
+
+    players =
+      players
+      |> Enum.map(fn p ->
+        if p.id == player.id do
+          Player.draw(player, tile)
+        else
+          p
+        end
+      end)
+
+    state = {left_tiles, players}
+
     {:reply, state, state}
   end
 
@@ -63,7 +75,23 @@ defmodule Mahjong.Game do
         %{player | hand: hand}
       end)
 
-    state = {tiles, players}
+    [tile | left_tiles] = tiles
+
+    player =
+      Enum.shuffle(players)
+      |> List.first()
+
+    players =
+      players
+      |> Enum.map(fn p ->
+        if p.id == player.id do
+          Player.draw(player, tile)
+        else
+          p
+        end
+      end)
+
+    state = {left_tiles, players}
     {:reply, state, state}
   end
 
@@ -90,11 +118,23 @@ defmodule Mahjong.Game do
   end
 
   @impl true
-  def handle_call({player, :discard, tile}, _, {tiles, players}) do
+  def handle_call({player, {:discard, tile}}, _, {tiles, players}) do
     players =
       Enum.map(players, fn p ->
         if p.id == player.id do
           Player.discard(player, tile)
+        else
+          p
+        end
+      end)
+
+    # TODO: Check players who can pong or kong, then to next position player
+    next_player = next_player(players, player.position, tile)
+
+    players =
+      Enum.map(players, fn p ->
+        if p.id == next_player.id do
+          %{next_player | in_turn?: true}
         else
           p
         end
@@ -105,7 +145,7 @@ defmodule Mahjong.Game do
   end
 
   @impl true
-  def handle_call({player, :pong, tile}, _, {tiles, players}) do
+  def handle_call({player, {:pong, tile}}, _, {tiles, players}) do
     players =
       Enum.map(players, fn p ->
         if p.id == player.id do
@@ -120,7 +160,7 @@ defmodule Mahjong.Game do
   end
 
   @impl true
-  def handle_call({player, :chow, tile, with_tile}, _, {tiles, players}) do
+  def handle_call({player, {:chow, {tile, with_tile}}}, _, {tiles, players}) do
     players =
       Enum.map(players, fn p ->
         if p.id == player.id do
@@ -131,6 +171,12 @@ defmodule Mahjong.Game do
       end)
 
     state = {tiles, players}
+    {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call({player, :win}, _, {tiles, players} = state) do
+    # TODO: handle win logic
     {:reply, state, state}
   end
 
@@ -154,5 +200,16 @@ defmodule Mahjong.Game do
     Deck.positions()
     |> Enum.reject(fn p -> p in positions end)
     |> List.first()
+  end
+
+  defp next_player(players, position, _tile) do
+    players = Enum.reject(players, &(&1.position == position))
+
+    case position do
+      :east -> Enum.find(players, &(&1.position == :north))
+      :north -> Enum.find(players, &(&1.position == :west))
+      :west -> Enum.find(players, &(&1.position == :south))
+      :south -> Enum.find(players, &(&1.position == :east))
+    end
   end
 end

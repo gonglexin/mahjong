@@ -43,11 +43,5 @@ defmodule Mahjong.Deck do
     {tile, left_tiles}
   end
 
-  # def pin(tile) do
-  # end
-  #
-  # def pong(tile) do
-  # end
-
   def positions, do: @positions
 end
