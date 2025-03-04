@@ -17,7 +17,8 @@ defmodule MahjongWeb.Router do
   scope "/", MahjongWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", HallLive
+    live "/game/:id", GameLive
   end
 
   # Other scopes may use custom stacks.

@@ -16,6 +16,7 @@ defmodule Mahjong.Application do
       {Finch, name: Mahjong.Finch},
       # Start a worker by calling: Mahjong.Worker.start_link(arg)
       # {Mahjong.Worker, arg},
+      pg_spec(),
       # Start to serve requests, typically the last entry
       MahjongWeb.Endpoint
     ]
@@ -32,5 +33,12 @@ defmodule Mahjong.Application do
   def config_change(changed, _new, removed) do
     MahjongWeb.Endpoint.config_change(changed, removed)
     :ok
+  end
+
+  defp pg_spec do
+    %{
+      id: :pg,
+      start: {:pg, :start_link, [:global]}
+    }
   end
 end

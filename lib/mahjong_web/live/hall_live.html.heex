@@ -1,0 +1,18 @@
+<div>
+  <.button phx-click="new_game">New Game</.button>
+</div>
+<div>
+  <div :for={game <- @games}>
+    {inspect(game)}
+
+    <.button phx-click="join" phx-value-id={Game.get_id(game)}>
+      Join
+    </.button>
+
+    {Game.get_id(game)}
+
+    <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
+      <.link patch={~p"/game/#{Game.get_id(game)}"}>Go</.link>
+    </.button>
+  </div>
+</div>

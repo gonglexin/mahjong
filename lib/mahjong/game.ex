@@ -3,8 +3,40 @@ defmodule Mahjong.Game do
 
   alias Mahjong.{Deck, Player}
 
+  def new(id) do
+    state = {:ok, game} = GenServer.start_link(__MODULE__, id, name: String.to_atom(id))
+
+    :pg.join(:global, :game_servers, game)
+
+    state
+  end
+
+  def get(id) do
+    Process.whereis(String.to_atom(id))
+
+    case Process.whereis(String.to_atom(id)) do
+      nil ->
+        {:error, nil}
+
+      game ->
+        {:ok, game}
+    end
+  end
+
+  def get_id(game) do
+    GenServer.call(game, :id)
+  end
+
   def join(game, player) do
     GenServer.call(game, {:join, player})
+  end
+
+  def joined?(game, player) do
+    GenServer.call(game, {:joined?, player})
+  end
+
+  def all_games() do
+    :pg.get_members(:global, :game_servers)
   end
 
   def start(game) do
@@ -15,30 +47,31 @@ defmodule Mahjong.Game do
     GenServer.call(game, :start_by_ai)
   end
 
-  def left_tiles(game) do
-    GenServer.call(game, :left_tiles)
+  def players(game) do
+    GenServer.call(game, :players)
   end
 
-  def start_link(nil) do
-    GenServer.start(__MODULE__, nil)
+  def tiles(game) do
+    GenServer.call(game, :tiles)
   end
 
   def action(game, player, action), do: GenServer.call(game, {player, action})
 
   @impl true
-  def init(_init_arg) do
-    {:ok, {Deck.shuffle(), []}}
+  def init(id) do
+    {:ok, %{id: id, tiles: [], players: []}}
   end
 
   @impl true
-  def handle_call(:start, _, {tiles, players}) when length(players) == 4 do
+  def handle_call(:start, _, %{players: players} = state) when length(players) == 4 do
+    tiles = Deck.shuffle()
     {four_hands, tiles} = Deck.four_hands(tiles)
 
     players =
       players
       |> Enum.zip(four_hands)
       |> Enum.map(fn {player, hand} ->
-        %{player | hand: hand}
+        %Player{player | hand: hand, in_turn?: false}
       end)
 
     [tile | left_tiles] = tiles
@@ -57,14 +90,15 @@ defmodule Mahjong.Game do
         end
       end)
 
-    state = {left_tiles, players}
+    state = %{state | tiles: left_tiles, players: players}
 
     {:reply, state, state}
   end
 
   # TODO: Add AI agent players
   @impl true
-  def handle_call(:start_by_ai, _, {tiles, _players}) do
+  def handle_call(:start_by_ai, _, state) do
+    tiles = Deck.shuffle()
     {four_hands, tiles} = Deck.four_hands(tiles)
 
     players =
@@ -72,7 +106,7 @@ defmodule Mahjong.Game do
       |> Enum.map(&Player.new(position: &1))
       |> Enum.zip(four_hands)
       |> Enum.map(fn {player, hand} ->
-        %{player | hand: hand}
+        %Player{player | hand: hand}
       end)
 
     [tile | left_tiles] = tiles
@@ -91,17 +125,27 @@ defmodule Mahjong.Game do
         end
       end)
 
-    state = {left_tiles, players}
+    state = %{state | tiles: left_tiles, players: players}
     {:reply, state, state}
   end
 
   @impl true
-  def handle_call(:left_tiles, _, {tiles, _players} = state) do
+  def handle_call(:id, _, %{id: id} = state) do
+    {:reply, id, state}
+  end
+
+  @impl true
+  def handle_call(:tiles, _, %{tiles: tiles} = state) do
     {:reply, tiles, state}
   end
 
   @impl true
-  def handle_call({player, :draw}, _, {tiles, players}) do
+  def handle_call(:players, _, %{players: players} = state) do
+    {:reply, players, state}
+  end
+
+  @impl true
+  def handle_call({player, :draw}, _, %{tiles: tiles, players: players} = state) do
     [tile | left_tiles] = tiles
 
     players =
@@ -113,12 +157,12 @@ defmodule Mahjong.Game do
         end
       end)
 
-    state = {left_tiles, players}
+    state = %{state | tiles: left_tiles, players: players}
     {:reply, state, state}
   end
 
   @impl true
-  def handle_call({player, {:discard, tile}}, _, {tiles, players}) do
+  def handle_call({player, {:discard, tile}}, _, %{tiles: tiles, players: players} = state) do
     players =
       Enum.map(players, fn p ->
         if p.id == player.id do
@@ -140,12 +184,12 @@ defmodule Mahjong.Game do
         end
       end)
 
-    state = {tiles, players}
+    state = %{state | tiles: tiles, players: players}
     {:reply, state, state}
   end
 
   @impl true
-  def handle_call({player, {:pong, tile}}, _, {tiles, players}) do
+  def handle_call({player, {:pong, tile}}, _, %{players: players} = state) do
     players =
       Enum.map(players, fn p ->
         if p.id == player.id do
@@ -155,12 +199,12 @@ defmodule Mahjong.Game do
         end
       end)
 
-    state = {tiles, players}
+    state = %{state | players: players}
     {:reply, state, state}
   end
 
   @impl true
-  def handle_call({player, {:chow, {tile, with_tile}}}, _, {tiles, players}) do
+  def handle_call({player, {:chow, {tile, with_tile}}}, _, %{players: players} = state) do
     players =
       Enum.map(players, fn p ->
         if p.id == player.id do
@@ -170,28 +214,37 @@ defmodule Mahjong.Game do
         end
       end)
 
-    state = {tiles, players}
+    state = %{state | players: players}
     {:reply, state, state}
   end
 
   @impl true
-  def handle_call({player, :win}, _, {tiles, players} = state) do
+  def handle_call({_player, :win}, _, %{tiles: _tiles, players: _players} = state) do
     # TODO: handle win logic
     {:reply, state, state}
   end
 
   @impl true
-  def handle_call({:join, _player}, _, {_tiles, players} = state) when length(players) == 4 do
+  def handle_call({:join, _player}, _, %{players: players} = state) when length(players) == 4 do
     {:reply, state, state}
   end
 
   @impl true
-  def handle_call({:join, player = %Player{}}, _, {tiles, players}) do
-    position = get_available_position(players)
-    player = %{player | position: position}
-    players = [player | players]
-    state = {tiles, players}
-    {:reply, state, state}
+  def handle_call({:join, player = %Player{}}, _, %{players: players} = state) do
+    if player not in players do
+      position = get_available_position(players)
+      player = %{player | position: position}
+      players = [player | players]
+      state = %{state | players: players}
+      {:reply, state, state}
+    else
+      {:reply, state, state}
+    end
+  end
+
+  @impl true
+  def handle_call({:joined?, player}, _, %{players: players} = state) do
+    {:reply, player in players, state}
   end
 
   defp get_available_position(players) do

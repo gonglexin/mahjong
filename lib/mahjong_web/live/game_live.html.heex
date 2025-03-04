@@ -1,0 +1,26 @@
+<div>
+  <.button phx-click="join">Join</.button>
+  <.button phx-click="start">Start</.button>
+  <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
+    <.link patch={~p"/"}>Hall</.link>
+  </.button>
+</div>
+<div>
+  <div :for={player <- @players}>
+    <span>{player.id} - {Atom.to_string(player.position)} - {length(player.hand)}</span>
+    <.icon :if={@current_player == player} name="hero-star-solid" />
+    <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" />
+    <div :for={tile <- player.hand}>
+      <span>{tile.suit} - {tile.value}</span>
+    </div>
+    <div :for={tiles <- player.open_hand}>
+      <label>Open hand: </label>
+      <div :for={tile <- tiles}>
+        <span>{tile.suit} - {tile.value}</span>
+      </div>
+    </div>
+  </div>
+  <div :for={tile <- @tiles}>
+    <span>{tile.suit} - {tile.value}</span>
+  </div>
+</div>

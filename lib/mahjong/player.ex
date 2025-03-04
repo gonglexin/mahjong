@@ -1,21 +1,22 @@
 defmodule Mahjong.Player do
-  alias Ecto.UUID
-  defstruct [:id, :position, :hand, :open_hand, :in_turn?]
+  defstruct [:id, :token, :position, :hand, :open_hand, :in_turn?]
 
+  alias Ecto.UUID
   alias Mahjong.Tile
 
   def new(attrs \\ %{}) do
     %__MODULE__{
       id: UUID.autogenerate(),
+      token: attrs[:token],
       position: attrs[:position],
-      hand: attrs[:hand],
+      hand: attrs[:hand] || [],
       open_hand: [],
       in_turn?: false
     }
   end
 
   def draw(player, tile) do
-    %{player | hand: [tile | player.hand]}
+    %{player | hand: [tile | player.hand], in_turn?: true}
   end
 
   def discard(player, tile) do
