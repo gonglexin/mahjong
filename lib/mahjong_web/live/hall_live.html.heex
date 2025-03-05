@@ -1,28 +1,51 @@
 <div class="flex flex-col">
   <div class="flex space-x-2">
     <.button phx-click="new_game">New Game</.button>
-    <.avatar name={@current_player.token} />
   </div>
-  <div class="grid grid-cols-2 md:grid-cols-4 space-x-4 space-y-4 mt-4">
-    <div :for={game <- @games} class="flex flex-col space-y-2">
+  <.table id="games" rows={@games}>
+    <:col :let={game} label="PID">
+      {inspect(game)}
+    </:col>
+    <:col :let={game} label="Game">
+      <.room id={Game.get_id(game)} />
+    </:col>
+    <:col :let={game} label="Players">
+      <div class="flex">
+        <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" />
+      </div>
+    </:col>
+    <:action :let={game}>
       <%= if id = Game.get_id(game) do %>
-        <div>
-          <.room id={id} />
-        </div>
-        <div class="flex">
-          <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" />
-        </div>
+        <.button phx-click="join" phx-value-id={id}>
+          Join
+        </.button>
 
-        <div class="flex justify-start space-x-2">
-          <.button phx-click="join" phx-value-id={id}>
-            Join
-          </.button>
-
-          <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
-            <.link patch={~p"/game/#{id}"}>Go</.link>
-          </.button>
-        </div>
+        <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
+          <.link patch={~p"/game/#{id}"}>Go</.link>
+        </.button>
       <% end %>
-    </div>
-  </div>
+    </:action>
+  </.table>
+  <%!-- <div class="grid grid-cols-2 md:grid-cols-4 space-x-4 space-y-4 mt-4"> --%>
+  <%!--   <div :for={game <- @games} class="flex flex-col space-y-2"> --%>
+  <%!--     <%= if id = Game.get_id(game) do %> --%>
+  <%!--       <div> --%>
+  <%!--         <.room id={id} /> --%>
+  <%!--       </div> --%>
+  <%!--       <div class="flex"> --%>
+  <%!--         <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" /> --%>
+  <%!--       </div> --%>
+  <%!----%>
+  <%!--       <div class="flex justify-start space-x-2"> --%>
+  <%!--         <.button phx-click="join" phx-value-id={id}> --%>
+  <%!--           Join --%>
+  <%!--         </.button> --%>
+  <%!----%>
+  <%!--         <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}> --%>
+  <%!--           <.link patch={~p"/game/#{id}"}>Go</.link> --%>
+  <%!--         </.button> --%>
+  <%!--       </div> --%>
+  <%!--     <% end %> --%>
+  <%!--   </div> --%>
+  <%!-- </div> --%>
 </div>

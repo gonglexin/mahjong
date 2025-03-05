@@ -45,7 +45,7 @@ defmodule MahjongWeb.Components.Image do
 
   def room(assigns) do
     ~H"""
-    <div id={@id} phx-update="ignore" class={["w-40 h-40 bg-purple-100/50", @class]}>
+    <div id={@id} phx-update="ignore" class={["w-10 h-10 bg-purple-100/50", @class]}>
       <minidenticon-svg username={@id}></minidenticon-svg>
     </div>
     """
