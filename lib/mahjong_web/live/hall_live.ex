@@ -21,7 +21,8 @@ defmodule MahjongWeb.HallLive do
     socket =
       socket
       |> assign(:current_player, current_player)
-      |> assign(:games, games)
+      |> stream_configure(:games, dom_id: &(Game.get_id(&1)))
+      |> stream(:games, games)
 
     {:ok, socket}
   end
@@ -30,11 +31,15 @@ defmodule MahjongWeb.HallLive do
     UUID.generate()
     |> Game.new()
 
-    {:noreply, assign(socket, games: Game.all_games())}
+    socket =
+      socket
+      |> stream(:games, Game.all_games(), reset: true)
+
+    {:noreply, socket}
   end
 
   def handle_event("join", %{"id" => id}, socket) do
-    game = socket.assigns.games |> Enum.find(fn g -> Game.get_id(g) == id end)
+    game = :pg.get_members(:global, :game_servers) |> Enum.find(fn g -> Game.get_id(g) == id end)
     Game.join(game, socket.assigns.current_player)
 
     socket =

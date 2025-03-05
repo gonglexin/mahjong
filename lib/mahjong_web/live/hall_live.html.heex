@@ -2,28 +2,26 @@
   <div class="flex space-x-2">
     <.button phx-click="new_game">New Game</.button>
   </div>
-  <.table id="games" rows={@games}>
-    <:col :let={game} label="PID">
+  <.table id="games" rows={@streams.games}>
+    <:col :let={{_id, game}} label="PID">
       {inspect(game)}
     </:col>
-    <:col :let={game} label="Game">
-      <.room id={Game.get_id(game)} />
+    <:col :let={{id, _game}} label="Game">
+      <.room id={id} />
     </:col>
-    <:col :let={game} label="Players">
+    <:col :let={{_id, game}} label="Players">
       <div class="flex">
         <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" />
       </div>
     </:col>
-    <:action :let={game}>
-      <%= if id = Game.get_id(game) do %>
-        <.button phx-click="join" phx-value-id={id}>
-          Join
-        </.button>
+    <:action :let={{id, game}}>
+      <.button phx-click="join" phx-value-id={id}>
+        Join
+      </.button>
 
-        <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
-          <.link patch={~p"/game/#{id}"}>Go</.link>
-        </.button>
-      <% end %>
+      <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
+        <.link patch={~p"/game/#{id}"}>Go</.link>
+      </.button>
     </:action>
   </.table>
   <%!-- <div class="grid grid-cols-2 md:grid-cols-4 space-x-4 space-y-4 mt-4"> --%>
