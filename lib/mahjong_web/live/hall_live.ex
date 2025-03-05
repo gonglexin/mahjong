@@ -9,6 +9,10 @@ defmodule MahjongWeb.HallLive do
 
     token = Map.get(session, "_csrf_token")
 
+    # When the player fist access site and hasn't join any
+    # game, which means player doesn't exist in any existed game
+    # players. When you refresh the page it'll generate a new player who's
+    # token is same but id is different as the origianl one
     current_player =
       games
       |> Enum.flat_map(&Game.players(&1))
@@ -23,7 +27,7 @@ defmodule MahjongWeb.HallLive do
   end
 
   def handle_event("new_game", _, socket) do
-    UUID.autogenerate()
+    UUID.generate()
     |> Game.new()
 
     {:noreply, assign(socket, games: Game.all_games())}

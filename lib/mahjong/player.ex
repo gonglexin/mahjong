@@ -6,7 +6,7 @@ defmodule Mahjong.Player do
 
   def new(attrs \\ %{}) do
     %__MODULE__{
-      id: UUID.autogenerate(),
+      id: UUID.generate(),
       token: attrs[:token],
       position: attrs[:position],
       hand: attrs[:hand] || [],
