@@ -89,6 +89,7 @@ defmodule MahjongWeb do
       import Phoenix.HTML
       # Core UI components
       import MahjongWeb.CoreComponents
+      import MahjongWeb.Components.Image
 
       # Shortcut for generating JS commands
       alias Phoenix.LiveView.JS
