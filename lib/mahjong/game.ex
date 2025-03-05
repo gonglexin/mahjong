@@ -4,7 +4,7 @@ defmodule Mahjong.Game do
   alias Mahjong.{Deck, Player}
 
   def new(id) do
-    state = {:ok, game} = GenServer.start_link(__MODULE__, id, name: String.to_atom(id))
+    state = {:ok, game} = GenServer.start(__MODULE__, id, name: String.to_atom(id))
 
     :pg.join(:global, :game_servers, game)
 
