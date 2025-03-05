@@ -4,10 +4,16 @@ defmodule MahjongWeb.HallLive do
   alias Ecto.UUID
   alias Mahjong.{Game, Player}
 
+  @topic "games"
+
   def mount(_params, session, socket) do
     games = Game.all_games() || []
 
     token = Map.get(session, "_csrf_token")
+
+    if connected?(socket) do
+      Mahjong.subscribe(@topic)
+    end
 
     # When the player fist access site and hasn't join any
     # game, which means player doesn't exist in any existed game
@@ -21,7 +27,7 @@ defmodule MahjongWeb.HallLive do
     socket =
       socket
       |> assign(:current_player, current_player)
-      |> stream_configure(:games, dom_id: &(Game.get_id(&1)))
+      |> stream_configure(:games, dom_id: &Game.get_id(&1))
       |> stream(:games, games)
 
     {:ok, socket}
@@ -31,20 +37,37 @@ defmodule MahjongWeb.HallLive do
     UUID.generate()
     |> Game.new()
 
-    socket =
-      socket
-      |> stream(:games, Game.all_games(), reset: true)
-
     {:noreply, socket}
   end
 
   def handle_event("join", %{"id" => id}, socket) do
-    game = :pg.get_members(:global, :game_servers) |> Enum.find(fn g -> Game.get_id(g) == id end)
+    game = Game.all_games() |> Enum.find(fn game -> Game.get_id(game) == id end)
     Game.join(game, socket.assigns.current_player)
 
     socket =
       socket
       |> push_navigate(to: ~p"/game/#{id}")
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:new_game, name}, socket) do
+    game = Process.whereis(name)
+
+    socket =
+      socket
+      |> stream_insert(:games, game, at: 0)
+
+    {:noreply, socket}
+  end
+
+  # BUG: Can't update player info in view
+  def handle_info({:player_join, {%Player{} = player, name}}, socket) do
+    game = Process.whereis(name)
+
+    socket =
+      socket
+      |> stream_insert(:games, game)
 
     {:noreply, socket}
   end

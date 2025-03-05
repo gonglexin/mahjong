@@ -3,10 +3,14 @@ defmodule Mahjong.Game do
 
   alias Mahjong.{Deck, Player}
 
+  @topic "games"
+
   def new(id) do
     state = {:ok, game} = GenServer.start(__MODULE__, id, name: String.to_atom(id))
 
     :pg.join(:global, :game_servers, game)
+
+    Mahjong.broadcast(@topic, {:new_game, String.to_atom(id)})
 
     state
   end
@@ -236,6 +240,9 @@ defmodule Mahjong.Game do
       player = %{player | position: position}
       players = [player | players]
       state = %{state | players: players}
+
+      {:registered_name, name} = Process.info(self(), :registered_name)
+      Mahjong.broadcast(@topic, {:player_join, {player, name}})
       {:reply, state, state}
     else
       {:reply, state, state}
