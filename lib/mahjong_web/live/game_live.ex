@@ -3,54 +3,41 @@ defmodule MahjongWeb.GameLive do
 
   alias Mahjong.{Game, Player}
 
-  require IEx
-  require Logger
+  @game_player_topic "games:player"
 
   def mount(%{"id" => id}, session, socket) do
-    {:ok, game} = Game.get(id)
-
-    token = Map.get(session, "_csrf_token")
-    players = Game.players(game)
-
-    current_player =
-      players
-      |> Enum.find(&(&1.token == token)) ||
-        Player.new(token: token)
+    if connected?(socket) do
+      Mahjong.subscribe(@game_player_topic)
+    end
 
     socket =
-      socket
-      |> assign(:game, game)
-      |> assign(:current_player, current_player)
-      |> assign(:tiles, Game.tiles(game))
-      |> assign(:players, players)
+      case Game.get(id) do
+        {:ok, game} ->
+          token = Map.get(session, "_csrf_token")
+          players = Game.players(game)
+
+          current_player =
+            players
+            |> Enum.find(&(&1.token == token)) ||
+              Player.new(token: token)
+
+          socket
+          |> assign(:game, game)
+          |> assign(:current_player, current_player)
+          |> stream(:tiles, Game.tiles(game))
+          |> stream(:players, players)
+
+        _ ->
+          socket
+          |> put_flash(:error, "Game #{id} not found!")
+          |> push_navigate(to: ~p"/")
+      end
 
     {:ok, socket}
   end
 
-  def handle_event("join", _, socket) when length(socket.assigns.players) == 4 do
-    {:noreply, socket}
-  end
-
   def handle_event("join", _, socket) do
-    # TODO: Intergate with Accounts
-
-    # player =
-    #   Enum.find(socket.assigns.players, fn p -> p.token == token end) ||
-    #     Player.new(token: token)
-
-    # %{tiles: tiles, players: players} = Game.join(socket.assigns.game, player)
-
-    %{tiles: tiles, players: players} =
-      Game.join(socket.assigns.game, socket.assigns.current_player)
-
-    current_player =
-      Enum.find(players, fn p -> p.token == socket.assigns.current_player.token end)
-
-    socket =
-      socket
-      |> assign(:tiles, tiles)
-      |> assign(:current_player, current_player)
-      |> assign(:players, players)
+    Game.join(socket.assigns.game, socket.assigns.current_player)
 
     {:noreply, socket}
   end
@@ -59,9 +46,26 @@ defmodule MahjongWeb.GameLive do
     %{tiles: tiles, players: players} = Game.start(socket.assigns.game)
 
     socket =
-      socket
-      |> assign(:tiles, tiles)
-      |> assign(:players, players)
+      if length(players) == 4 do
+        socket
+        |> stream(:tiles, tiles)
+        |> stream(:players, players)
+      else
+        put_flash(socket, :error, "Must have 4 players")
+      end
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:player_join, {%Player{} = player, name}}, socket) do
+    game = Process.whereis(name)
+
+    socket =
+      if game == socket.assigns.game do
+        stream_insert(socket, :players, player)
+      else
+        socket
+      end
 
     {:noreply, socket}
   end

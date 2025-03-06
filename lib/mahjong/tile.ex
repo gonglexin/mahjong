@@ -1,8 +1,11 @@
 defmodule Mahjong.Tile do
-  @enforce_keys [:suit, :value]
-  defstruct [:suit, :value]
+  @enforce_keys [:id, :suit, :value]
+  defstruct [:id, :suit, :value]
+
+  alias Ecto.UUID
 
   @type t :: %__MODULE__{
+          id: UUID.t(),
           suit: atom(),
           value: integer()
         }
@@ -11,7 +14,7 @@ defmodule Mahjong.Tile do
 
   def suits, do: @suits
 
-  def new(suit, value) do
-    %__MODULE__{suit: suit, value: value}
+  def new(attrs \\ %{}) do
+    %__MODULE__{id: UUID.generate(), suit: attrs[:suit], value: attrs[:value]}
   end
 end

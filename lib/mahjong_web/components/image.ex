@@ -27,7 +27,7 @@ defmodule MahjongWeb.Components.Image do
 
   def avatar(assigns) do
     ~H"""
-    <div id={@name} phx-update="ignore" class={["w-10 rounded-[50%] bg-gray-200", @class]}>
+    <div id={"avatar-#{@name}"} phx-update="ignore" class={["w-10 rounded-[50%] bg-gray-200", @class]}>
       <minidenticon-svg username={@name}></minidenticon-svg>
     </div>
     """
@@ -45,8 +45,32 @@ defmodule MahjongWeb.Components.Image do
 
   def room(assigns) do
     ~H"""
-    <div id={@id} phx-update="ignore" class={["w-10 h-10 bg-purple-100/50", @class]}>
+    <div id={"r-#{@id}"} phx-update="ignore" class={["w-10 h-10 bg-purple-100/50", @class]}>
       <minidenticon-svg username={@id}></minidenticon-svg>
+    </div>
+    """
+  end
+
+  @doc """
+  Renders a tile
+  ## Examples
+
+      <.tile tile=%Tile{id: uuid, suit: :bamboos, value: 3} />
+  """
+  attr :tile, Mahjong.Tile, required: true
+  attr :show, :boolean, default: false
+  attr :class, :string, default: nil
+
+  def tile(assigns) do
+    ~H"""
+    <div
+      id={"t-#{@tile.id}"}
+      phx-update="ignore"
+      class={["w-12 h-18 bg-purple-100/50 rounded border border-red-800", @class]}
+    >
+      <%= if @show do %>
+        {@tile.suit} {@tile.value}
+      <% end %>
     </div>
     """
   end

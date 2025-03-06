@@ -3,14 +3,15 @@ defmodule Mahjong.Game do
 
   alias Mahjong.{Deck, Player}
 
-  @topic "games"
+  @game_new_topic "games:new"
+  @game_player_topic "games:player"
 
   def new(id) do
     state = {:ok, game} = GenServer.start(__MODULE__, id, name: String.to_atom(id))
 
     :pg.join(:global, :game_servers, game)
 
-    Mahjong.broadcast(@topic, {:new_game, String.to_atom(id)})
+    Mahjong.broadcast(@game_new_topic, {:new_game, String.to_atom(id)})
 
     state
   end
@@ -64,6 +65,11 @@ defmodule Mahjong.Game do
   @impl true
   def init(id) do
     {:ok, %{id: id, tiles: [], players: []}}
+  end
+
+  @impl true
+  def handle_call(:start, _, %{players: players} = state) when length(players) < 4 do
+    {:reply, state, state}
   end
 
   @impl true
@@ -242,7 +248,7 @@ defmodule Mahjong.Game do
       state = %{state | players: players}
 
       {:registered_name, name} = Process.info(self(), :registered_name)
-      Mahjong.broadcast(@topic, {:player_join, {player, name}})
+      Mahjong.broadcast(@game_player_topic, {:player_join, {player, name}})
       {:reply, state, state}
     else
       {:reply, state, state}

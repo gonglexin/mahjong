@@ -2,7 +2,6 @@ defmodule Mahjong.Player do
   defstruct [:id, :token, :position, :hand, :open_hand, :in_turn?]
 
   alias Ecto.UUID
-  alias Mahjong.Tile
 
   def new(attrs \\ %{}) do
     %__MODULE__{
@@ -23,6 +22,7 @@ defmodule Mahjong.Player do
     %{player | hand: List.delete(player.hand, tile), in_turn?: false}
   end
 
+  # TODO: get the right tiles to delete
   def pong(player, tile) do
     # Remove two matching tiles from hand
     hand = List.delete(player.hand, tile)
@@ -60,21 +60,21 @@ defmodule Mahjong.Player do
       end
 
     # Remove the two tiles used to form the chow from hand
-    hand =
-      sequence
-      |> List.delete(with_tile.value)
-      |> Enum.reduce(
-        player.hand,
-        fn value, acc -> List.delete(acc, %Tile{suit: with_tile.suit, value: value}) end
-      )
+    hand = []
+    # sequence
+    # |> List.delete(with_tile.value)
+    # |> Enum.reduce(
+    #   player.hand,
+    #   fn value, acc -> List.delete(acc, %Tile{suit: with_tile.suit, value: value}) end
+    # )
 
     # Add the chow sequence to open hand
-    chow_set =
-      sequence
-      |> Enum.map(fn value ->
-        %Mahjong.Tile{suit: with_tile.suit, value: value}
-      end)
-      |> List.to_tuple()
+    chow_set = []
+    # sequence
+    # |> Enum.map(fn value ->
+    #   %Mahjong.Tile{suit: with_tile.suit, value: value}
+    # end)
+    # |> List.to_tuple()
 
     open_hand = [chow_set | player.open_hand]
 

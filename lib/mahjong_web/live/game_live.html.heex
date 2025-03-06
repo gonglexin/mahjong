@@ -5,13 +5,14 @@
     <.link patch={~p"/"}>Hall</.link>
   </.button>
 </div>
-<div>
-  <div :for={player <- @players}>
-    <span>{player.id} - {Atom.to_string(player.position)} - {length(player.hand)}</span>
+<div id="players" phx-update="stream">
+  <div :for={{id, player} <- @streams.players} id={id}>
+    <.avatar name={player.token} class="w-12 h-12" />
+    <span>{player.id} - {player.position} - {length(player.hand)}</span>
     <.icon :if={@current_player == player} name="hero-star-solid" />
     <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" />
-    <div :for={tile <- player.hand}>
-      <span>{tile.suit} - {tile.value}</span>
+    <div class="flex space-x-1">
+      <.tile :for={tile <- player.hand} tile={tile} show={@current_player == player} />
     </div>
     <div :for={tiles <- player.open_hand}>
       <label>Open hand: </label>
@@ -20,7 +21,8 @@
       </div>
     </div>
   </div>
-  <div :for={tile <- @tiles}>
-    <span>{tile.suit} - {tile.value}</span>
+
+  <div class="grid grid-cols-9 mt-4">
+    <.tile :for={{_id, tile} <- @streams.tiles} tile={tile} />
   </div>
 </div>

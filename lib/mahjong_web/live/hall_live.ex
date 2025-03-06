@@ -4,15 +4,25 @@ defmodule MahjongWeb.HallLive do
   alias Ecto.UUID
   alias Mahjong.{Game, Player}
 
-  @topic "games"
+  @game_new_topic "games:new"
+  @game_player_topic "games:player"
 
   def mount(_params, session, socket) do
-    games = Game.all_games() || []
+    games =
+      case Game.all_games() do
+        [] ->
+          {:ok, game} = Game.new(UUID.generate())
+          [game]
+
+        games ->
+          games
+      end
 
     token = Map.get(session, "_csrf_token")
 
     if connected?(socket) do
-      Mahjong.subscribe(@topic)
+      [@game_new_topic, @game_player_topic]
+      |> Enum.map(&Mahjong.subscribe/1)
     end
 
     # When the player fist access site and hasn't join any
@@ -61,8 +71,8 @@ defmodule MahjongWeb.HallLive do
     {:noreply, socket}
   end
 
-  # BUG: Can't update player info in view
-  def handle_info({:player_join, {%Player{} = player, name}}, socket) do
+  # BUG: The game duplicate in a new row
+  def handle_info({:player_join, {%Player{} = _player, name}}, socket) do
     game = Process.whereis(name)
 
     socket =

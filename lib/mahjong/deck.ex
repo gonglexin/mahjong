@@ -8,7 +8,7 @@ defmodule Mahjong.Deck do
       for suit <- Tile.suits(),
           value <- 1..9,
           _ <- 1..4,
-          do: %Tile{suit: suit, value: value}
+          do: Tile.new(suit: suit, value: value)
 
     Enum.shuffle(tiles)
   end

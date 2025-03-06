@@ -3,16 +3,18 @@
     <.button phx-click="new_game">New Game</.button>
   </div>
   <.table id="games" rows={@streams.games}>
-    <:col :let={{_id, game}} label="PID">
-      {inspect(game)}
-    </:col>
     <:col :let={{id, _game}} label="Game">
-      <.room id={id} />
+      <.link patch={~p"/game/#{id}"}>
+        <.room id={id} />
+      </.link>
     </:col>
     <:col :let={{_id, game}} label="Players">
       <div class="flex">
         <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" />
       </div>
+    </:col>
+    <:col :let={{_id, game}} label="PID">
+      {inspect(game)}
     </:col>
     <:action :let={{id, _game}}>
       <.button phx-click="join" phx-value-id={id}>
