@@ -59,16 +59,32 @@ defmodule MahjongWeb.GameLive do
     {:noreply, socket}
   end
 
+  def handle_event("discard", %{"id" => tile_id}, socket) do
+    tile = Enum.find(socket.assigns.current_player.hand, &(&1.id == tile_id))
+    Game.action(socket.assigns.game, socket.assigns.current_player, {:discard, tile})
+    {:noreply, socket}
+  end
+
   def handle_info({:player_join, %Player{} = player}, socket) do
     {:noreply, stream_insert(socket, :players, player)}
   end
 
-  def handle_info(:game_started, socket) do
-    game = socket.assigns.game
+  def handle_info({:game_started, %{tiles: tiles, players: players}}, socket) do
+    socket =
+      socket
+      |> stream(:tiles, tiles, reset: true)
+      |> stream(:players, players, reset: true)
 
-    socket
-    |> stream(:tiles, Game.tiles(game), reset: true)
-    |> stream(:players, Game.players(game), reset: true)
+    {:noreply, socket}
+  end
+
+  def handle_info({:player_discard, {player, _tile}}, socket) do
+    require Logger
+    Logger.info(inspect(player.discards))
+
+    socket =
+      socket
+      |> stream_insert(:players, player)
 
     {:noreply, socket}
   end

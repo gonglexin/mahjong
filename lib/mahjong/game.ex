@@ -69,7 +69,7 @@ defmodule Mahjong.Game do
       players
       |> Enum.zip(four_hands)
       |> Enum.map(fn {player, hand} ->
-        %Player{player | hand: hand, in_turn?: false}
+        %Player{player | hand: hand, open_hand: [], discards: [], in_turn?: false}
       end)
 
     [tile | left_tiles] = tiles
@@ -93,7 +93,7 @@ defmodule Mahjong.Game do
     # Boradcast to hall live
     # Mahjong.broadcast("games", {:game_started, id})
     # Boradcast to game live
-    Mahjong.broadcast("games:#{id}", :game_started)
+    Mahjong.broadcast("games:#{id}", {:game_started, state})
 
     {:reply, state, state}
   end
@@ -170,28 +170,26 @@ defmodule Mahjong.Game do
   end
 
   @impl true
-  def handle_call({player, {:discard, tile}}, _, %{tiles: tiles, players: players} = state) do
-    players =
-      Enum.map(players, fn p ->
-        if p.id == player.id do
-          Player.discard(player, tile)
-        else
-          p
-        end
-      end)
+  def handle_call(
+        {player, {:discard, tile}},
+        _,
+        %{id: id, tiles: tiles, players: players} = state
+      ) do
+    player = Player.discard(player, tile)
 
     # TODO: Check players who can pong or kong, then to next position player
     next_player = next_player(players, player.position, tile)
 
     players =
       Enum.map(players, fn p ->
-        if p.id == next_player.id do
-          %{next_player | in_turn?: true}
-        else
-          p
+        cond do
+          p.id == player.id -> player
+          p.id == next_player.id -> %{next_player | in_turn?: true}
+          true -> p
         end
       end)
 
+    Mahjong.broadcast("games:#{id}", {:player_discard, {player, tile}})
     state = %{state | tiles: tiles, players: players}
     {:reply, state, state}
   end

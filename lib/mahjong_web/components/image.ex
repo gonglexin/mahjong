@@ -65,10 +65,17 @@ defmodule MahjongWeb.Components.Image do
   attr :tile, Mahjong.Tile, required: true
   attr :show, :boolean, default: false
   attr :class, :string, default: nil
+  attr :rest, :global
 
   def tile(assigns) do
     ~H"""
-    <div class={["w-12 h-16", @class]} data-suit={@tile.suit} data-value={@tile.value}>
+    <div
+      id={@tile.id}
+      class={["w-12 h-16", @class]}
+      data-suit={@tile.suit}
+      data-value={@tile.value}
+      {@rest}
+    >
       <%= if @show do %>
         <img src={"/images/#{@tile.suit}_#{@tile.value}.gif"} />
       <% else %>

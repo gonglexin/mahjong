@@ -1,5 +1,5 @@
 defmodule Mahjong.Player do
-  defstruct [:id, :token, :position, :hand, :open_hand, :in_turn?, :game_id]
+  defstruct [:id, :token, :position, :hand, :open_hand, :discards, :in_turn?, :game_id]
 
   alias Ecto.UUID
 
@@ -10,17 +10,27 @@ defmodule Mahjong.Player do
       position: attrs[:position],
       hand: attrs[:hand] || [],
       open_hand: [],
+      discards: [],
       in_turn?: false,
       game_id: nil
     }
   end
 
+  # Put tile at the end of hand
   def draw(player, tile) do
-    %{player | hand: [tile | player.hand], in_turn?: true}
+    %{player | hand: player.hand ++ [tile], in_turn?: true}
   end
 
+  # TODO:
+  # 1. After discard, we need to resort tiles in hand
+  # 2. Construct discards list in a better way
   def discard(player, tile) do
-    %{player | hand: List.delete(player.hand, tile), in_turn?: false}
+    %{
+      player
+      | hand: List.delete(player.hand, tile),
+        discards: player.discards ++ [tile],
+        in_turn?: false
+    }
   end
 
   # TODO: get the right tiles to delete

@@ -1,4 +1,4 @@
-<div>
+<div class="mb-4">
   <.button :if={is_nil(@current_player.game_id)} phx-click="join">Join</.button>
   <.button phx-click="start">Start</.button>
   <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
@@ -6,23 +6,41 @@
   </.button>
 </div>
 <div id="players" phx-update="stream">
-  <div :for={{id, player} <- @streams.players} id={id}>
-    <.avatar name={player.token} class="w-12 h-12" />
+  <div :for={{id, player} <- @streams.players} id={id} class="flex-col">
+    <.avatar name={player.token} />
     <span>{player.id} - {player.position} - {length(player.hand)}</span>
     <.icon :if={@current_player == player} name="hero-star-solid" />
     <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" />
-    <div class="flex space-x-1">
-      <.tile :for={tile <- player.hand} tile={tile} show={@current_player == player} />
+
+    <div class="flex flex-wrap max-w-[calc(9*3rem)]">
+      <.tile :for={tile <- player.discards} tile={tile} show={true} class="p-1" />
     </div>
+
     <div :for={tiles <- player.open_hand}>
       <label>Open hand: </label>
       <div :for={tile <- tiles}>
         <span>{tile.suit} - {tile.value}</span>
       </div>
     </div>
+
+    <%!-- show={@current_player == player} --%>
+    <div class="flex space-x-1">
+      <.tile
+        :for={tile <- player.hand}
+        tile={tile}
+        show={true}
+        class={@current_player == player && "hover:scale-125"}
+        phx-click={
+          if @current_player == player && player.in_turn? do
+            "discard"
+          end
+        }
+        phx-value-id={tile.id}
+      />
+    </div>
   </div>
 </div>
 
-<div id="tiles" phx-update="stream" class="grid grid-cols-9 mt-40">
-  <.tile :for={{_id, tile} <- @streams.tiles} tile={tile} />
+<div id="tiles" phx-update="stream" class="mt-10 flex flex-wrap max-w-[calc(9*3rem)]">
+  <.tile :for={{_id, tile} <- @streams.tiles} tile={tile} show={true} class="p-1" />
 </div>
