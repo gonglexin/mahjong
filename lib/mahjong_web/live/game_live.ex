@@ -3,11 +3,9 @@ defmodule MahjongWeb.GameLive do
 
   alias Mahjong.{Game, Player}
 
-  @game_player_topic "games:player"
-
   def mount(%{"id" => id}, session, socket) do
     if connected?(socket) do
-      Mahjong.subscribe(@game_player_topic)
+      Mahjong.subscribe("games:#{id}")
     end
 
     socket =
@@ -43,29 +41,28 @@ defmodule MahjongWeb.GameLive do
   end
 
   def handle_event("start", _, socket) do
-    %{tiles: tiles, players: players} = Game.start(socket.assigns.game)
+    %{players: players} = Game.start(socket.assigns.game)
 
     socket =
-      if length(players) == 4 do
-        socket
-        |> stream(:tiles, tiles)
-        |> stream(:players, players)
-      else
+      if length(players) < 4 do
         put_flash(socket, :error, "Must have 4 players")
+      else
+        socket
       end
 
     {:noreply, socket}
   end
 
-  def handle_info({:player_join, {%Player{} = player, name}}, socket) do
-    game = Process.whereis(name)
+  def handle_info({:player_join, %Player{} = player}, socket) do
+    {:noreply, stream_insert(socket, :players, player)}
+  end
 
-    socket =
-      if game == socket.assigns.game do
-        stream_insert(socket, :players, player)
-      else
-        socket
-      end
+  def handle_info(:game_started, socket) do
+    game = socket.assigns.game
+
+    socket
+    |> stream(:tiles, Game.tiles(game), reset: true)
+    |> stream(:players, Game.players(game), reset: true)
 
     {:noreply, socket}
   end

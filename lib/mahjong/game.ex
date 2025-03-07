@@ -3,15 +3,12 @@ defmodule Mahjong.Game do
 
   alias Mahjong.{Deck, Player}
 
-  @game_new_topic "games:new"
-  @game_player_topic "games:player"
-
   def new(id) do
     state = {:ok, game} = GenServer.start(__MODULE__, id, name: String.to_atom(id))
 
     :pg.join(:global, :game_servers, game)
 
-    Mahjong.broadcast(@game_new_topic, {:new_game, String.to_atom(id)})
+    Mahjong.broadcast("games", {:new_game, String.to_atom(id)})
 
     state
   end
@@ -34,10 +31,6 @@ defmodule Mahjong.Game do
 
   def join(game, player) do
     GenServer.call(game, {:join, player})
-  end
-
-  def joined?(game, player) do
-    GenServer.call(game, {:joined?, player})
   end
 
   def all_games() do
@@ -68,12 +61,7 @@ defmodule Mahjong.Game do
   end
 
   @impl true
-  def handle_call(:start, _, %{players: players} = state) when length(players) < 4 do
-    {:reply, state, state}
-  end
-
-  @impl true
-  def handle_call(:start, _, %{players: players} = state) when length(players) == 4 do
+  def handle_call(:start, _, %{id: id, players: players} = state) when length(players) == 4 do
     tiles = Deck.shuffle()
     {four_hands, tiles} = Deck.four_hands(tiles)
 
@@ -102,6 +90,16 @@ defmodule Mahjong.Game do
 
     state = %{state | tiles: left_tiles, players: players}
 
+    # Boradcast to hall live
+    # Mahjong.broadcast("games", {:game_started, id})
+    # Boradcast to game live
+    Mahjong.broadcast("games:#{id}", :game_started)
+
+    {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call(:start, _, state) do
     {:reply, state, state}
   end
 
@@ -240,24 +238,24 @@ defmodule Mahjong.Game do
   end
 
   @impl true
-  def handle_call({:join, player = %Player{}}, _, %{players: players} = state) do
+  def handle_call({:join, player = %Player{}}, _, %{id: id, players: players} = state) do
     if player not in players do
       position = get_available_position(players)
       player = %{player | position: position}
       players = [player | players]
       state = %{state | players: players}
 
-      {:registered_name, name} = Process.info(self(), :registered_name)
-      Mahjong.broadcast(@game_player_topic, {:player_join, {player, name}})
+      {:registered_name, game_name} = Process.info(self(), :registered_name)
+
+      # Broadcast to hall live
+      Mahjong.broadcast("games", {:player_join, game_name})
+      # Broadcast to specific game
+      Mahjong.broadcast("games:#{id}", {:player_join, player})
+
       {:reply, state, state}
     else
       {:reply, state, state}
     end
-  end
-
-  @impl true
-  def handle_call({:joined?, player}, _, %{players: players} = state) do
-    {:reply, player in players, state}
   end
 
   defp get_available_position(players) do

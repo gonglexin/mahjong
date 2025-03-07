@@ -22,12 +22,17 @@ defmodule MahjongWeb.Components.Image do
       <.avatar name="uuid" />
       <.avatar name={player.token} class="ml-1 w-3 h-3" />
   """
+  attr :id, :string, default: nil
   attr :name, :string, required: true
   attr :class, :string, default: nil
 
   def avatar(assigns) do
     ~H"""
-    <div id={"avatar-#{@name}"} phx-update="ignore" class={["w-10 rounded-[50%] bg-gray-200", @class]}>
+    <div
+      id={@id || "avatar-#{@name}"}
+      phx-update="ignore"
+      class={["w-10 rounded-[50%] bg-gray-200", @class]}
+    >
       <minidenticon-svg username={@name}></minidenticon-svg>
     </div>
     """
@@ -66,7 +71,7 @@ defmodule MahjongWeb.Components.Image do
     <div
       id={"t-#{@tile.id}"}
       phx-update="ignore"
-      class={["w-12 h-18 bg-purple-100/50 rounded border border-red-800", @class]}
+      class={["w-12 h-16 bg-purple-100 rounded border border-red-800", @class]}
     >
       <%= if @show do %>
         {@tile.suit} {@tile.value}

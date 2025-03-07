@@ -21,8 +21,8 @@
       </div>
     </div>
   </div>
+</div>
 
-  <div class="grid grid-cols-9 mt-4">
-    <.tile :for={{_id, tile} <- @streams.tiles} tile={tile} />
-  </div>
+<div id="tiles" phx-update="stream" class="grid grid-cols-9 mt-40">
+  <.tile :for={{_id, tile} <- @streams.tiles} tile={tile} />
 </div>
