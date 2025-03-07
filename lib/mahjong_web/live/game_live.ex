@@ -12,10 +12,13 @@ defmodule MahjongWeb.GameLive do
       case Game.get(id) do
         {:ok, game} ->
           token = Map.get(session, "_csrf_token")
-          players = Game.players(game)
+
+          all_game_players =
+            Game.all_games()
+            |> Enum.flat_map(&Game.players(&1))
 
           current_player =
-            players
+            all_game_players
             |> Enum.find(&(&1.token == token)) ||
               Player.new(token: token)
 
@@ -23,7 +26,7 @@ defmodule MahjongWeb.GameLive do
           |> assign(:game, game)
           |> assign(:current_player, current_player)
           |> stream(:tiles, Game.tiles(game))
-          |> stream(:players, players)
+          |> stream(:players, Game.players(game))
 
         _ ->
           socket
@@ -35,9 +38,12 @@ defmodule MahjongWeb.GameLive do
   end
 
   def handle_event("join", _, socket) do
-    Game.join(socket.assigns.game, socket.assigns.current_player)
-
-    {:noreply, socket}
+    if is_nil(socket.assigns.current_player.game_id) do
+      player = Game.join(socket.assigns.game, socket.assigns.current_player)
+      {:noreply, assign(socket, :current_player, player)}
+    else
+      {:noreply, put_flash(socket, :error, "You are already in a game!")}
+    end
   end
 
   def handle_event("start", _, socket) do

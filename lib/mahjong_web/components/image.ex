@@ -68,13 +68,11 @@ defmodule MahjongWeb.Components.Image do
 
   def tile(assigns) do
     ~H"""
-    <div
-      id={"t-#{@tile.id}"}
-      phx-update="ignore"
-      class={["w-12 h-16 bg-purple-100 rounded border border-red-800", @class]}
-    >
+    <div class={["w-12 h-16", @class]} data-suit={@tile.suit} data-value={@tile.value}>
       <%= if @show do %>
-        {@tile.suit} {@tile.value}
+        <img src={"/images/#{@tile.suit}_#{@tile.value}.gif"} />
+      <% else %>
+        <img src="/images/hidden_tile.gif" />
       <% end %>
     </div>
     """

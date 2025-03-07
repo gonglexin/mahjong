@@ -233,15 +233,15 @@ defmodule Mahjong.Game do
   end
 
   @impl true
-  def handle_call({:join, _player}, _, %{players: players} = state) when length(players) == 4 do
-    {:reply, state, state}
+  def handle_call({:join, player}, _, %{players: players} = state) when length(players) == 4 do
+    {:reply, player, state}
   end
 
   @impl true
   def handle_call({:join, player = %Player{}}, _, %{id: id, players: players} = state) do
-    if player not in players do
+    if is_nil(player.game_id) && player not in players do
       position = get_available_position(players)
-      player = %{player | position: position}
+      player = %{player | position: position, game_id: id}
       players = [player | players]
       state = %{state | players: players}
 
@@ -252,9 +252,9 @@ defmodule Mahjong.Game do
       # Broadcast to specific game
       Mahjong.broadcast("games:#{id}", {:player_join, player})
 
-      {:reply, state, state}
+      {:reply, player, state}
     else
-      {:reply, state, state}
+      {:reply, player, state}
     end
   end
 

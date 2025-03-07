@@ -47,14 +47,19 @@ defmodule MahjongWeb.HallLive do
   end
 
   def handle_event("join", %{"id" => id}, socket) do
-    game = Game.all_games() |> Enum.find(fn game -> Game.get_id(game) == id end)
-    Game.join(game, socket.assigns.current_player)
+    if is_nil(socket.assigns.current_player.game_id) do
+      game = Game.all_games() |> Enum.find(fn game -> Game.get_id(game) == id end)
+      player = Game.join(game, socket.assigns.current_player)
 
-    socket =
-      socket
-      |> push_navigate(to: ~p"/game/#{id}")
+      socket =
+        socket
+        |> assign(:current_player, player)
+        |> push_navigate(to: ~p"/game/#{id}")
 
-    {:noreply, socket}
+      {:noreply, socket}
+    else
+      {:noreply, put_flash(socket, :error, "You are already in a game!")}
+    end
   end
 
   def handle_info({:new_game, game_name}, socket) do

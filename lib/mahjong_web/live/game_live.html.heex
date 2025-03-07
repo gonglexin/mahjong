@@ -1,5 +1,5 @@
 <div>
-  <.button phx-click="join">Join</.button>
+  <.button :if={is_nil(@current_player.game_id)} phx-click="join">Join</.button>
   <.button phx-click="start">Start</.button>
   <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
     <.link patch={~p"/"}>Hall</.link>

@@ -1,5 +1,5 @@
 defmodule Mahjong.Player do
-  defstruct [:id, :token, :position, :hand, :open_hand, :in_turn?]
+  defstruct [:id, :token, :position, :hand, :open_hand, :in_turn?, :game_id]
 
   alias Ecto.UUID
 
@@ -10,7 +10,8 @@ defmodule Mahjong.Player do
       position: attrs[:position],
       hand: attrs[:hand] || [],
       open_hand: [],
-      in_turn?: false
+      in_turn?: false,
+      game_id: nil
     }
   end
 

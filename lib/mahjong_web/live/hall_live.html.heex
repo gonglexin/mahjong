@@ -17,13 +17,15 @@
       {inspect(game)}
     </:col>
     <:action :let={{id, _game}}>
-      <.button phx-click="join" phx-value-id={id}>
-        Join
-      </.button>
-
-      <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
-        <.link patch={~p"/game/#{id}"}>Go</.link>
-      </.button>
+      <%= if @current_player.game_id == id do %>
+        <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
+          <.link patch={~p"/game/#{id}"}>Go</.link>
+        </.button>
+      <% else %>
+        <.button phx-click="join" phx-value-id={id}>
+          Join
+        </.button>
+      <% end %>
     </:action>
   </.table>
 </div>
