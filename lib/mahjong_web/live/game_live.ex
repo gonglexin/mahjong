@@ -61,7 +61,7 @@ defmodule MahjongWeb.GameLive do
 
   def handle_event("discard", %{"id" => tile_id}, socket) do
     tile = Enum.find(socket.assigns.current_player.hand, &(&1.id == tile_id))
-    Game.action(socket.assigns.game, socket.assigns.current_player, {:discard, tile})
+    Game.action(socket.assigns.game, socket.assigns.current_player.id, {:discard, tile})
     {:noreply, socket}
   end
 

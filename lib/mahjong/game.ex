@@ -171,10 +171,14 @@ defmodule Mahjong.Game do
 
   @impl true
   def handle_call(
-        {player, {:discard, tile}},
+        {player_id, {:discard, tile}},
         _,
         %{id: id, tiles: tiles, players: players} = state
       ) do
+    # Re-get player since hand changed
+    player =
+      Enum.find(players, &(&1.id == player_id))
+
     player = Player.discard(player, tile)
 
     # TODO: Check players who can pong or kong, then to next position player
