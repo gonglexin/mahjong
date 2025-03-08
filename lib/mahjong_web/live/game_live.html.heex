@@ -23,15 +23,15 @@
       </div>
     </div>
 
-    <%!-- show={@current_player == player} --%>
+    <%!-- show={@current_player.id == player.id} --%>
     <div class="flex space-x-1">
       <.tile
         :for={tile <- player.hand}
         tile={tile}
         show={true}
-        class={@current_player == player && "hover:scale-125"}
+        class={@current_player.id == player.id && "hover:scale-125"}
         phx-click={
-          if @current_player == player && player.in_turn? do
+          if @current_player.id == player.id && player.in_turn? do
             "discard"
           end
         }
@@ -42,5 +42,7 @@
 </div>
 
 <div id="tiles" phx-update="stream" class="mt-10 flex flex-wrap max-w-[calc(9*3rem)]">
-  <.tile :for={{_id, tile} <- @streams.tiles} tile={tile} show={true} class="p-1" />
+  <div :for={{id, tile} <- @streams.tiles} id={id}>
+    <.tile tile={tile} show={true} class="p-1" />
+  </div>
 </div>

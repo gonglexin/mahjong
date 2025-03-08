@@ -184,12 +184,12 @@ defmodule Mahjong.Game do
       Enum.map(players, fn p ->
         cond do
           p.id == player.id -> player
-          p.id == next_player.id -> %{next_player | in_turn?: true}
+          p.id == next_player.id -> next_player
           true -> p
         end
       end)
 
-    Mahjong.broadcast("games:#{id}", {:player_discard, {player, tile}})
+    Mahjong.broadcast("games:#{id}", {:player_discard, {player, next_player, tile}})
     state = %{state | tiles: tiles, players: players}
     {:reply, state, state}
   end
@@ -267,11 +267,14 @@ defmodule Mahjong.Game do
   defp next_player(players, position, _tile) do
     players = Enum.reject(players, &(&1.position == position))
 
-    case position do
-      :east -> Enum.find(players, &(&1.position == :north))
-      :north -> Enum.find(players, &(&1.position == :west))
-      :west -> Enum.find(players, &(&1.position == :south))
-      :south -> Enum.find(players, &(&1.position == :east))
-    end
+    player =
+      case position do
+        :east -> Enum.find(players, &(&1.position == :north))
+        :north -> Enum.find(players, &(&1.position == :west))
+        :west -> Enum.find(players, &(&1.position == :south))
+        :south -> Enum.find(players, &(&1.position == :east))
+      end
+
+    %{player | in_turn?: true}
   end
 end

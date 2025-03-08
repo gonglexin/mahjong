@@ -70,21 +70,24 @@ defmodule MahjongWeb.GameLive do
   end
 
   def handle_info({:game_started, %{tiles: tiles, players: players}}, socket) do
+    # Update current palyer hand
+    current_player =
+      Enum.find(players, fn player -> player.id == socket.assigns.current_player.id end)
+
     socket =
       socket
+      |> assign(current_player: current_player)
       |> stream(:tiles, tiles, reset: true)
       |> stream(:players, players, reset: true)
 
     {:noreply, socket}
   end
 
-  def handle_info({:player_discard, {player, _tile}}, socket) do
-    require Logger
-    Logger.info(inspect(player.discards))
-
+  def handle_info({:player_discard, {player, next_player, _tile}}, socket) do
     socket =
       socket
       |> stream_insert(:players, player)
+      |> stream_insert(:players, next_player)
 
     {:noreply, socket}
   end
