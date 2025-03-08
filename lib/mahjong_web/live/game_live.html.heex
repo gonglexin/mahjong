@@ -9,7 +9,7 @@
   <div :for={{id, player} <- @streams.players} id={id} class="flex-col">
     <.avatar name={player.token} />
     <span>{player.id} - {player.position} - {length(player.hand)}</span>
-    <.icon :if={@current_player == player} name="hero-star-solid" />
+    <.icon :if={@current_player.id == player.id} name="hero-star-solid" />
     <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" />
 
     <div class="flex flex-wrap max-w-[calc(9*3rem)]">
