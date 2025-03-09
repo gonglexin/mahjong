@@ -84,11 +84,57 @@ defmodule MahjongWeb.GameLive do
   end
 
   def handle_info({:player_discard, {player, next_player, _tile}}, socket) do
+    current_player =
+      if socket.assigns.current_player.id == player.id,
+        do: player,
+        else: socket.assigns.current_player
+
     socket =
       socket
+      |> assign(:current_player, current_player)
       |> stream_insert(:players, player)
       |> stream_insert(:players, next_player)
 
     {:noreply, socket}
+  end
+
+  defp get_player_class(player, current_player) do
+    relative_positions = get_relative_positions(current_player.position)
+
+    cond do
+      player.position == current_player.position -> "player-bottom"
+      player.position == relative_positions.left -> "player-left"
+      player.position == relative_positions.top -> "player-top"
+      player.position == relative_positions.right -> "player-right"
+    end
+  end
+
+  defp get_player_position(player, current_player) do
+    relative_positions = get_relative_positions(current_player.position)
+
+    cond do
+      player.position == current_player.position -> "bottom"
+      player.position == relative_positions.left -> "left"
+      player.position == relative_positions.top -> "top"
+      player.position == relative_positions.right -> "right"
+    end
+  end
+
+  defp get_relative_positions(current_position) do
+    case current_position do
+      :east -> %{left: :south, top: :west, right: :north}
+      :south -> %{left: :west, top: :north, right: :east}
+      :west -> %{left: :north, top: :east, right: :south}
+      :north -> %{left: :east, top: :south, right: :west}
+    end
+  end
+
+  defp get_direction_markers(current_position) do
+    case current_position do
+      :east -> %{top: "西", left: "南", right: "北", bottom: "东"}
+      :south -> %{top: "北", left: "西", right: "东", bottom: "南"}
+      :west -> %{top: "东", left: "北", right: "南", bottom: "西"}
+      :north -> %{top: "南", left: "东", right: "西", bottom: "北"}
+    end
   end
 end

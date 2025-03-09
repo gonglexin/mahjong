@@ -3,3 +3,94 @@
 @import "tailwindcss/utilities";
 
 /* This file is for your main application CSS */
+
+/** CSS for player position **/
+.player-bottom {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.player-left {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%) rotate(90deg);
+}
+
+.player-top {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) rotate(180deg);
+}
+
+.player-right {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+}
+
+/** CSS for player hand **/
+
+@keyframes glowing {
+  0% {
+    box-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 20px #ffffff;
+  }
+
+  50% {
+    box-shadow: 0 0 10px rgb(0 0 0 / 0.1), 0 0 20px rgb(0 0 0 / 0.1), 0 0 30px rgb(0 0 0 / 0.1);
+  }
+
+  100% {
+    box-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 20px #ffffff;
+  }
+}
+
+.glowing-tile {
+  animation: glowing 1.5s infinite;
+  border-radius: 4px;
+}
+
+/** CSS for positions **/
+
+/* 正方形和对角线 */
+.square {
+  background: linear-gradient(to bottom right, transparent 49.5%, black 49.5%, black 50.5%, transparent 50.5%),
+    linear-gradient(to top right, transparent 49.5%, black 49.5%, black 50.5%, transparent 50.5%),
+    #f3f4f6;
+}
+
+/* 方位文字 */
+.square .direction {
+  position: absolute;
+  /* font-size: 1.25rem; */
+  font-weight: bold;
+  color: black;
+}
+
+.square .north {
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.square .east {
+  top: 50%;
+  right: 10%;
+  transform: translateY(-50%);
+}
+
+.square .south {
+  bottom: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.square .west {
+  top: 50%;
+  left: 10%;
+  transform: translateY(-50%);
+}

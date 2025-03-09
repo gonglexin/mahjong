@@ -5,13 +5,19 @@
     <.link patch={~p"/"}>Hall</.link>
   </.button>
 </div>
-<div id="players" phx-update="stream">
-  <div :for={{id, player} <- @streams.players} id={id} class="flex-col space-y-4">
+<div id="players" phx-update="stream" class="relative h-[780px]">
+  <%!-- <div :for={{id, player} <- @streams.players} id={id} class="flex-col space-y-4"> --%>
+  <div
+    :for={{id, player} <- @streams.players}
+    id={id}
+    class={["space-y-4", get_player_class(player, @current_player)]}
+    data-position={get_player_position(player, @current_player)}
+  >
     <div>
-      <.avatar name={player.token} />
-      <span>{player.id} - {player.position} - {length(player.hand)}</span>
-      <.icon :if={@current_player.id == player.id} name="hero-star-solid" />
-      <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" />
+      <%!-- <.avatar name={player.token} /> --%>
+      <%!-- <span>{player.id} - {player.position} - {length(player.hand)}</span> --%>
+      <%!-- <.icon :if={@current_player.id == player.id} name="hero-star-solid" /> --%>
+      <%!-- <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" /> --%>
     </div>
 
     <div class="flex flex-wrap max-w-[calc(14*2rem)]">
@@ -20,7 +26,7 @@
 
     <div class="flex items-end">
       <%!-- show={@current_player.id == player.id} --%>
-      <div class="flex">
+      <div class={["flex", player.in_turn? && "glowing-tile shadow"]}>
         <.tile
           :for={tile <- player.hand}
           tile={tile}
@@ -38,6 +44,24 @@
         <div :for={tiles <- player.open_hand} class="flex">
           <.tile :for={tile <- tiles} tile={tile} show={true} class="w-8 h-full" />
         </div>
+      </div>
+    </div>
+  </div>
+  
+<!-- position marker -->
+  <div class="absolute inset-0 flex items-center justify-center">
+    <div class="square w-24 h-24 border border-gray-400 relative">
+      <div class="direction north">
+        {get_direction_markers(@current_player.position)[:top]}
+      </div>
+      <div class="direction east">
+        {get_direction_markers(@current_player.position)[:right]}
+      </div>
+      <div class="direction south">
+        {get_direction_markers(@current_player.position)[:bottom]}
+      </div>
+      <div class="direction west">
+        {get_direction_markers(@current_player.position)[:left]}
       </div>
     </div>
   </div>
