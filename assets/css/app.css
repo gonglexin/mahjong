@@ -49,11 +49,6 @@
   }
 }
 
-.glowing-tile {
-  animation: glowing 1.5s infinite;
-  border-radius: 4px;
-}
-
 /** CSS for positions **/
 
 /* 正方形和对角线 */
@@ -61,36 +56,4 @@
   background: linear-gradient(to bottom right, transparent 49.5%, black 49.5%, black 50.5%, transparent 50.5%),
     linear-gradient(to top right, transparent 49.5%, black 49.5%, black 50.5%, transparent 50.5%),
     #f3f4f6;
-}
-
-/* 方位文字 */
-.square .direction {
-  position: absolute;
-  /* font-size: 1.25rem; */
-  font-weight: bold;
-  color: black;
-}
-
-.square .north {
-  top: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.square .east {
-  top: 50%;
-  right: 10%;
-  transform: translateY(-50%);
-}
-
-.square .south {
-  bottom: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.square .west {
-  top: 50%;
-  left: 10%;
-  transform: translateY(-50%);
 }

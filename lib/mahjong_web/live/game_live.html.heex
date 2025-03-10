@@ -26,7 +26,7 @@
 
     <div class="flex items-end">
       <%!-- show={@current_player.id == player.id} --%>
-      <div class={["flex", player.in_turn? && "glowing-tile shadow"]}>
+      <div class={["flex", player.in_turn? && "animate-[glowing_2s_infinite]"]}>
         <.tile
           :for={tile <- player.hand}
           tile={tile}
@@ -50,17 +50,17 @@
 
   <!-- position marker -->
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <div class="square w-24 h-24 border-2 border-black shadow-xl relative pointer-events-auto">
-      <div class="direction north">
+    <div class="square w-24 h-24 border-2 border-black shadow-xl relative pointer-events-auto font-bold">
+      <div class="absolute top-[10%] left-1/2 transform -translate-x-1/2">
         {get_direction_markers(@current_player.position)[:top]}
       </div>
-      <div class="direction east">
+      <div class="absolute top-1/2 right-[10%] transform -translate-y-1/2">
         {get_direction_markers(@current_player.position)[:right]}
       </div>
-      <div class="direction south">
+      <div class="absolute bottom-[10%] left-1/2 transform -translate-x-1/2">
         {get_direction_markers(@current_player.position)[:bottom]}
       </div>
-      <div class="direction west">
+      <div class="absolute top-1/2 left-[10%] transform -translate-y-1/2">
         {get_direction_markers(@current_player.position)[:left]}
       </div>
     </div>
