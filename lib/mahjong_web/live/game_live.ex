@@ -25,6 +25,7 @@ defmodule MahjongWeb.GameLive do
           socket
           |> assign(:game, game)
           |> assign(:current_player, current_player)
+          |> assign(:tile_size, length(Game.tiles(game)))
           |> stream(:tiles, Game.tiles(game))
           |> stream(:players, Game.players(game))
 
@@ -77,6 +78,7 @@ defmodule MahjongWeb.GameLive do
     socket =
       socket
       |> assign(current_player: current_player)
+      |> assign(:tile_size ,length(tiles))
       |> stream(:tiles, tiles, reset: true)
       |> stream(:players, players, reset: true)
 
