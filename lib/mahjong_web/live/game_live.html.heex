@@ -47,9 +47,8 @@
     <%!-- </div> --%>
   </div>
 
-  <!-- position marker -->
-  <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <div class="relative w-24 h-24 border-2 border-black shadow-xl bg-gray-100 pointer-events-auto font-bold">
+  <div id="position_marker" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+    <div class="relative w-24 h-24 border-2 border-black shadow-xl bg-gray-100 pointer-events-auto">
       <div class="absolute inset-0 before:absolute before:inset-0 before:bg-gradient-to-br before:from-transparent before:to-black before:w-full before:h-full before:[mask-image:linear-gradient(to_bottom_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]"></div>
       <div class="absolute inset-0 after:absolute after:inset-0 after:bg-gradient-to-tr after:from-transparent after:to-black after:w-full after:h-full after:[mask-image:linear-gradient(to_top_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]"></div>
       <div class="absolute top-[10%] left-1/2 transform -translate-x-1/2">
@@ -66,7 +65,7 @@
       </div>
     </div>
   </div>
-  <div class="absolute inset-0 top-1/3 text-center text-lg">{@tile_size}</div>
+  <div id="left_tile_size" class="absolute inset-0 top-1/3 text-center text-lg">{@tile_size}</div>
 </div>
 
 <div id="tiles" phx-update="stream" class="mt-10 flex flex-wrap max-w-[calc(9*3rem)]">
