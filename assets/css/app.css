@@ -6,31 +6,19 @@
 
 /** CSS for player position **/
 .player-bottom {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
+  @apply absolute bottom-0 left-1/2 -translate-x-1/2;
 }
 
 .player-left {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%) rotate(90deg);
+  @apply absolute left-0 top-1/2 -translate-y-1/2 rotate-90;
 }
 
 .player-top {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%) rotate(180deg);
+  @apply absolute top-0 left-1/2 -translate-x-1/2 rotate-180;
 }
 
 .player-right {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%) rotate(-90deg);
+  @apply absolute right-0 top-1/2 -translate-y-1/2 -rotate-90;
 }
 
 /** CSS for player hand **/
