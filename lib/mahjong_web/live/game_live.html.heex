@@ -25,12 +25,11 @@
     </div>
 
     <div class="flex items-end">
-      <%!-- show={@current_player.id == player.id} --%>
       <div class={["flex", player.in_turn? && "animate-[glowing_2s_infinite]"]}>
         <.tile
           :for={tile <- player.hand}
           tile={tile}
-          show={true}
+          show={@current_player.id == player.id}
           class={@current_player.id == player.id && "hover:scale-125"}
           phx-click={
             if @current_player.id == player.id && player.in_turn? do
@@ -50,7 +49,9 @@
 
   <!-- position marker -->
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-    <div class="square w-24 h-24 border-2 border-black shadow-xl relative pointer-events-auto font-bold">
+    <div class="relative w-24 h-24 border-2 border-black shadow-xl bg-gray-100 pointer-events-auto font-bold">
+      <div class="absolute inset-0 before:absolute before:inset-0 before:bg-gradient-to-br before:from-transparent before:to-black before:w-full before:h-full before:[mask-image:linear-gradient(to_bottom_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]"></div>
+      <div class="absolute inset-0 after:absolute after:inset-0 after:bg-gradient-to-tr after:from-transparent after:to-black after:w-full after:h-full after:[mask-image:linear-gradient(to_top_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]"></div>
       <div class="absolute top-[10%] left-1/2 transform -translate-x-1/2">
         {get_direction_markers(@current_player.position)[:top]}
       </div>
