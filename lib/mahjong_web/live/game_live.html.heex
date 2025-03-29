@@ -5,69 +5,80 @@
     <.link patch={~p"/"}>Hall</.link>
   </.button>
 </div>
-<div id="players" phx-update="stream" class="relative h-[780px]">
-  <%!-- <div :for={{id, player} <- @streams.players} id={id} class="flex-col space-y-4"> --%>
+<div id="game-borad" class="relative h-[780px]">
   <div
-    :for={{id, player} <- @streams.players}
-    id={id}
-    class={["space-y-4", get_player_class(player, @current_player)]}
-    data-position={get_player_position(player, @current_player)}
+    id="position_marker"
+    class="absolute inset-0 flex items-center justify-center pointer-events-none"
   >
-    <div class="flex flex-wrap px-20 max-w-[calc(14*2rem)]">
-      <.tile :for={tile <- player.discards} tile={tile} show={true} class="w-8 h-full" />
-    </div>
-
-    <div class="flex items-end">
-      <div class={["flex", player.in_turn? && "animate-[glowing_2s_infinite]"]}>
-        <.tile
-          :for={tile <- player.hand}
-          tile={tile}
-          show={@current_player.id == player.id}
-          class={@current_player.id == player.id && "hover:scale-125"}
-          phx-click={
-            if @current_player.id == player.id && player.in_turn? do
-              "discard"
-            end
-          }
-          phx-value-id={tile.id}
-        />
-      </div>
-      <div class="flex ml-auto space-x-2">
-        <div :for={tiles <- player.open_hand} class="flex">
-          <.tile :for={tile <- tiles} tile={tile} show={true} class="w-8 h-full" />
-        </div>
-      </div>
-    </div>
-
-    <%!-- <div class="flex justify-center"> --%>
-      <%!-- <.avatar name={player.token} /> --%>
-      <%!-- <span>{player.id} - {player.position} - {length(player.hand)}</span> --%>
-      <%!-- <.icon :if={@current_player.id == player.id} name="hero-star-solid" /> --%>
-      <%!-- <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" /> --%>
-    <%!-- </div> --%>
-  </div>
-
-  <div id="position_marker" class="absolute inset-0 flex items-center justify-center pointer-events-none">
     <div class="relative w-24 h-24 border-2 border-black shadow-xl bg-gray-100 pointer-events-auto">
-      <div class="absolute inset-0 before:absolute before:inset-0 before:bg-gradient-to-br before:from-transparent before:to-black before:w-full before:h-full before:[mask-image:linear-gradient(to_bottom_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]"></div>
-      <div class="absolute inset-0 after:absolute after:inset-0 after:bg-gradient-to-tr after:from-transparent after:to-black after:w-full after:h-full after:[mask-image:linear-gradient(to_top_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]"></div>
-      <div class="absolute top-[10%] left-1/2 transform -translate-x-1/2">
+      <div class="absolute inset-0 before:absolute before:inset-0 before:bg-gradient-to-br before:from-transparent before:to-black before:w-full before:h-full before:[mask-image:linear-gradient(to_bottom_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]">
+      </div>
+      <div class="absolute inset-0 after:absolute after:inset-0 after:bg-gradient-to-tr after:from-transparent after:to-black after:w-full after:h-full after:[mask-image:linear-gradient(to_top_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]">
+      </div>
+      <div class="absolute top-[10%] left-1/2 -translate-x-1/2">
         {get_direction_markers(@current_player.position)[:top]}
       </div>
-      <div class="absolute top-1/2 right-[10%] transform -translate-y-1/2">
+      <div class="absolute top-1/2 right-[10%] -translate-y-1/2">
         {get_direction_markers(@current_player.position)[:right]}
       </div>
-      <div class="absolute bottom-[10%] left-1/2 transform -translate-x-1/2">
+      <div class="absolute bottom-[10%] left-1/2 -translate-x-1/2">
         {get_direction_markers(@current_player.position)[:bottom]}
       </div>
-      <div class="absolute top-1/2 left-[10%] transform -translate-y-1/2">
+      <div class="absolute top-1/2 left-[10%] -translate-y-1/2">
         {get_direction_markers(@current_player.position)[:left]}
       </div>
     </div>
   </div>
-  <div id="left_tile_size" class="absolute inset-0 top-1/3 text-center text-lg pointer-events-none">{@tile_size}</div>
-</div>
 
+  <div
+    id="left_tile_size"
+    class="absolute inset-0 top-1/3 text-center text-lg pointer-events-none"
+  >
+    Left tiles: {@tile_size}
+  </div>
+
+  <div id="players" phx-update="stream">
+    <div
+      :for={{id, player} <- @streams.players}
+      id={id}
+      class={["space-y-4", get_player_class(player, @current_player)]}
+      data-position={get_player_position(player, @current_player)}
+    >
+      <div class="flex flex-wrap px-20 max-w-[calc(14*2rem)]">
+        <.tile :for={tile <- player.discards} tile={tile} show={true} class="w-8 h-full" />
+      </div>
+
+      <div class="flex items-end">
+        <div class={["flex", player.in_turn? && "animate-[glowing_2s_infinite]"]}>
+          <.tile
+            :for={tile <- player.hand}
+            tile={tile}
+            show={@current_player.id == player.id}
+            class={@current_player.id == player.id && "hover:scale-125"}
+            phx-click={
+              if @current_player.id == player.id && player.in_turn? do
+                "discard"
+              end
+            }
+            phx-value-id={tile.id}
+          />
+        </div>
+        <div class="flex ml-auto space-x-2">
+          <div :for={tiles <- player.open_hand} class="flex">
+            <.tile :for={tile <- tiles} tile={tile} show={true} class="w-8 h-full" />
+          </div>
+        </div>
+      </div>
+
+      <%!-- <div class="flex justify-center"> --%>
+      <%!-- <.avatar name={player.token} /> --%>
+      <%!-- <span>{player.id} - {player.position} - {length(player.hand)}</span> --%>
+      <%!-- <.icon :if={@current_player.id == player.id} name="hero-star-solid" /> --%>
+      <%!-- <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" /> --%>
+      <%!-- </div> --%>
+    </div>
+  </div>
+</div>
 <div id="tiles" phx-update="stream" class="mt-10 flex flex-wrap max-w-[calc(9*3rem)]">
   <div :for={{id, tile} <- @streams.tiles} id={id}>
     <.tile tile={tile} show={true} class="p-1" />
