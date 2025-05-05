@@ -64,8 +64,8 @@ defmodule MahjongWeb.CoreComponents do
         @kind == :info && "alert-info",
         @kind == :error && "alert-error"
       ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle-mini" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle-mini" class="size-5 shrink-0" />
+        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
+        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
         <div>
           <p :if={@title} class="font-semibold">{@title}</p>
           <p>{msg}</p>
@@ -183,7 +183,7 @@ defmodule MahjongWeb.CoreComponents do
     <fieldset class="fieldset mb-2">
       <label>
         <input type="hidden" name={@name} value="false" disabled={@rest[:disabled]} />
-        <span class="fieldset-label">
+        <span class="label">
           <input
             type="checkbox"
             id={@id}
@@ -204,7 +204,7 @@ defmodule MahjongWeb.CoreComponents do
     ~H"""
     <fieldset class="fieldset mb-2">
       <label>
-        <span :if={@label} class="fieldset-label mb-1">{@label}</span>
+        <span :if={@label} class="label mb-1">{@label}</span>
         <select
           id={@id}
           name={@name}
@@ -225,7 +225,7 @@ defmodule MahjongWeb.CoreComponents do
     ~H"""
     <fieldset class="fieldset mb-2">
       <label>
-        <span :if={@label} class="fieldset-label mb-1">{@label}</span>
+        <span :if={@label} class="label mb-1">{@label}</span>
         <textarea
           id={@id}
           name={@name}
@@ -246,7 +246,7 @@ defmodule MahjongWeb.CoreComponents do
     ~H"""
     <fieldset class="fieldset mb-2">
       <label>
-        <span :if={@label} class="fieldset-label mb-1">{@label}</span>
+        <span :if={@label} class="label mb-1">{@label}</span>
         <input
           type={@type}
           name={@name}
@@ -268,7 +268,7 @@ defmodule MahjongWeb.CoreComponents do
   defp error(assigns) do
     ~H"""
     <p class="mt-1.5 flex gap-2 items-center text-sm text-error">
-      <.icon name="hero-exclamation-circle-mini" class="size-5" />
+      <.icon name="hero-exclamation-circle" class="size-5" />
       {render_slot(@inner_block)}
     </p>
     """
@@ -404,7 +404,7 @@ defmodule MahjongWeb.CoreComponents do
 
   ## Examples
 
-      <.icon name="hero-x-mark-solid" />
+      <.icon name="hero-x-mark" />
       <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
   """
   attr :name, :string, required: true

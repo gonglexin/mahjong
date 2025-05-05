@@ -19,8 +19,9 @@ config :mahjong, Mahjong.Repo,
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
 config :mahjong, MahjongWeb.Endpoint,
-  # Binding to loopback ipv4 address prevents access from other machines.
-  # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
+  # Bind to 0.0.0.0 to expose the server to the docker host machine.
+  # This makes make the service accessible from any network interface.
+  # Change to `ip: {127, 0, 0, 1}` to allow access only from the server machine.
   http: [ip: {127, 0, 0, 1}, port: String.to_integer(System.get_env("PORT") || "4000")],
   check_origin: false,
   code_reloader: true,
@@ -61,7 +62,7 @@ config :mahjong, MahjongWeb.Endpoint,
     patterns: [
       ~r"priv/static/(?!uploads/).*(js|css|png|jpeg|jpg|gif|svg)$",
       ~r"priv/gettext/.*(po)$",
-      ~r"lib/mahjong_web/(controllers|live|components)/.*(ex|heex)$"
+      ~r"lib/mahjong_web/(?:controllers|live|components|router)/?.*\.(ex|heex)$"
     ]
   ]
 
