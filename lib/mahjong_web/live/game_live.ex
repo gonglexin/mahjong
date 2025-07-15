@@ -137,6 +137,7 @@ defmodule MahjongWeb.GameLive do
       :south -> %{top: "北", left: "西", right: "东", bottom: "南"}
       :west -> %{top: "东", left: "北", right: "南", bottom: "西"}
       :north -> %{top: "南", left: "东", right: "西", bottom: "北"}
+      nil -> %{top: "北", left: "西", right: "东", bottom: "南"}
     end
   end
 end
