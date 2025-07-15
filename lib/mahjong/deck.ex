@@ -27,10 +27,10 @@ defmodule Mahjong.Deck do
 
   def four_hands(tiles) do
     {first_hand, tiles} = new_hand(tiles)
-    {sencond_hand, tiles} = new_hand(tiles)
+    {second_hand, tiles} = new_hand(tiles)
     {third_hand, tiles} = new_hand(tiles)
     {fourth_hand, tiles} = new_hand(tiles)
-    {[first_hand, sencond_hand, third_hand, fourth_hand], tiles}
+    {[first_hand, second_hand, third_hand, fourth_hand], tiles}
   end
 
   # TODO: Fix this
