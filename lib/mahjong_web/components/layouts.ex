@@ -11,6 +11,24 @@ defmodule MahjongWeb.Layouts do
 
   embed_templates "layouts/*"
 
+  @doc """
+  Renders the app layout
+
+  ## Examples
+
+      <Layouts.app flash={@flash}>
+        <h1>Content</h1>
+      </Layout.app>
+
+  """
+  attr :flash, :map, required: true, doc: "the map of flash messages"
+
+  attr :current_scope, :map,
+    default: nil,
+    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
+
+  slot :inner_block, required: true
+
   def app(assigns) do
     ~H"""
     <header class="navbar px-4 sm:px-6 lg:px-8">
@@ -86,7 +104,7 @@ defmodule MahjongWeb.Layouts do
         phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""})}
         hidden
       >
-        {gettext("Hang in there while we get back on track")}
+        {gettext("Attempting to reconnec")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
     </div>

@@ -72,7 +72,7 @@ defmodule MahjongWeb.CoreComponents do
         </div>
         <div class="flex-1" />
         <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark-solid" class="size-5 opacity-40 group-hover:opacity-70" />
+          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
         </button>
       </div>
     </div>
