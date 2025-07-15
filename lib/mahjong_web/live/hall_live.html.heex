@@ -1,31 +1,33 @@
-<div class="flex flex-col">
-  <div class="flex space-x-2">
-    <.button phx-click="new_game">New Game</.button>
+<Layouts.app flash={@flash}>
+  <div class="flex flex-col">
+    <div class="flex space-x-2">
+      <.button phx-click="new_game">New Game</.button>
+    </div>
+    <.table id="games" rows={@streams.games}>
+      <:col :let={{id, _game}} label="Game">
+        <.link patch={~p"/game/#{id}"}>
+          <.room id={id} />
+        </.link>
+      </:col>
+      <:col :let={{_id, game}} label="Players">
+        <div class="flex">
+          <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" />
+        </div>
+      </:col>
+      <:col :let={{_id, game}} label="PID">
+        {inspect(game)}
+      </:col>
+      <:action :let={{id, _game}}>
+        <%= if @current_player.game_id == id do %>
+          <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
+            <.link patch={~p"/game/#{id}"}>Go</.link>
+          </.button>
+        <% else %>
+          <.button phx-click="join" phx-value-id={id}>
+            Join
+          </.button>
+        <% end %>
+      </:action>
+    </.table>
   </div>
-  <.table id="games" rows={@streams.games}>
-    <:col :let={{id, _game}} label="Game">
-      <.link patch={~p"/game/#{id}"}>
-        <.room id={id} />
-      </.link>
-    </:col>
-    <:col :let={{_id, game}} label="Players">
-      <div class="flex">
-        <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" />
-      </div>
-    </:col>
-    <:col :let={{_id, game}} label="PID">
-      {inspect(game)}
-    </:col>
-    <:action :let={{id, _game}}>
-      <%= if @current_player.game_id == id do %>
-        <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
-          <.link patch={~p"/game/#{id}"}>Go</.link>
-        </.button>
-      <% else %>
-        <.button phx-click="join" phx-value-id={id}>
-          Join
-        </.button>
-      <% end %>
-    </:action>
-  </.table>
-</div>
+</Layouts.app>
