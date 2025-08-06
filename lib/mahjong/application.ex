@@ -12,8 +12,6 @@ defmodule Mahjong.Application do
       Mahjong.Repo,
       {DNSCluster, query: Application.get_env(:mahjong, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Mahjong.PubSub},
-      # Start the Finch HTTP client for sending emails
-      {Finch, name: Mahjong.Finch},
       # Start a worker by calling: Mahjong.Worker.start_link(arg)
       # {Mahjong.Worker, arg},
       pg_spec(),
