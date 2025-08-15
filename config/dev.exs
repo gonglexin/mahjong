@@ -1,7 +1,5 @@
 import Config
 
-config :live_debugger, browser_features?: true
-
 # Configure your database
 config :mahjong, Mahjong.Repo,
   username: "postgres",
