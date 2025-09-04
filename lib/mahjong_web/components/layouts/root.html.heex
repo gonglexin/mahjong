@@ -31,7 +31,7 @@
     <script type="module">
       import { minidenticonSvg } from 'https://cdn.jsdelivr.net/npm/minidenticons@4.2.1/minidenticons.min.js'
     </script>
-    <%= Application.get_env(:live_debugger, :live_debugger_tags) %>
+    {Application.get_env(:live_debugger, :live_debugger_tags)}
   </head>
   <body>
     {@inner_content}

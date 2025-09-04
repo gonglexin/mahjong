@@ -40,7 +40,7 @@ defmodule Mahjong.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:tidewave, "~> 0.3", only: :dev},
+      {:tidewave, "~> 0.4", only: :dev},
       {:phoenix, "~> 1.8.0", override: true},
       {:phoenix_ecto, "~> 4.5"},
       {:ecto_sql, "~> 3.13"},
@@ -67,7 +67,7 @@ defmodule Mahjong.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:live_debugger, "~> 0.3.0", only: :dev}
+      {:live_debugger, "~> 0.4.0", only: :dev}
     ]
   end
 
