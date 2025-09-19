@@ -84,7 +84,7 @@ defmodule Mahjong.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind mahjong", "esbuild mahjong"],
+      "assets.build": ["compile", "tailwind mahjong", "esbuild mahjong"],
       "assets.deploy": [
         "tailwind mahjong --minify",
         "esbuild mahjong --minify",
