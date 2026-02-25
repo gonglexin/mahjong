@@ -24,7 +24,8 @@ defmodule MahjongWeb.Endpoint do
     at: "/",
     from: :mahjong,
     gzip: not code_reloading?,
-    only: MahjongWeb.static_paths()
+    only: MahjongWeb.static_paths(),
+    raise_on_missing_only: code_reloading?
 
   if Code.ensure_loaded?(Tidewave) do
     plug Tidewave
