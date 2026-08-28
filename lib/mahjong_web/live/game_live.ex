@@ -26,7 +26,6 @@ defmodule MahjongWeb.GameLive do
           |> assign(:game, game)
           |> assign(:current_player, current_player)
           |> assign(:tile_size, length(Game.tiles(game)))
-          |> stream(:tiles, Game.tiles(game))
           |> stream(:players, Game.players(game))
 
         _ ->
@@ -60,6 +59,18 @@ defmodule MahjongWeb.GameLive do
     {:noreply, socket}
   end
 
+  def handle_event("start_by_ai", _, socket) do
+    if is_nil(socket.assigns.current_player.game_id) do
+      player = Game.join(socket.assigns.game, socket.assigns.current_player)
+      socket = assign(socket, :current_player, player)
+      Game.start_by_ai(socket.assigns.game)
+      {:noreply, socket}
+    else
+      Game.start_by_ai(socket.assigns.game)
+      {:noreply, socket}
+    end
+  end
+
   def handle_event("discard", %{"id" => tile_id}, socket) do
     tile = Enum.find(socket.assigns.current_player.hand, &(&1.id == tile_id))
     Game.action(socket.assigns.game, socket.assigns.current_player.id, {:discard, tile})
@@ -71,58 +82,40 @@ defmodule MahjongWeb.GameLive do
   end
 
   def handle_info({:game_started, %{tiles: tiles, players: players}}, socket) do
-    # Update current palyer hand
+    # Seated viewers get their dealt player; spectators keep the unseated one
     current_player =
-      Enum.find(players, fn player -> player.id == socket.assigns.current_player.id end)
+      Enum.find(players, fn player -> player.id == socket.assigns.current_player.id end) ||
+        socket.assigns.current_player
 
     socket =
       socket
-      |> assign(current_player: current_player)
+      |> assign(:current_player, current_player)
       |> assign(:tile_size, length(tiles))
-      |> stream(:tiles, tiles, reset: true)
       |> stream(:players, players, reset: true)
 
     {:noreply, socket}
   end
 
-  def handle_info({:player_discard, {player, next_player, _tile}}, socket) do
-    current_player =
-      if socket.assigns.current_player.id == player.id,
-        do: player,
-        else: socket.assigns.current_player
-
-    socket =
-      socket
-      |> assign(:current_player, current_player)
-      |> stream_insert(:players, player)
-      |> stream_insert(:players, next_player)
-
-    {:noreply, socket}
-  end
-
-  defp get_player_class(player, current_player) do
-    relative_positions = get_relative_positions(current_player.position)
+  # Seats relative to the current viewer: bottom is always "me" when seated.
+  # Spectators view from the default east seat.
+  defp seat_position(player, current_player) do
+    viewer_seat = current_player.position || :east
+    relative = relative_positions(viewer_seat)
 
     cond do
-      player.position == current_player.position -> "player-bottom"
-      player.position == relative_positions.left -> "player-left"
-      player.position == relative_positions.top -> "player-top"
-      player.position == relative_positions.right -> "player-right"
+      player.id == current_player.id or player.position == viewer_seat -> "bottom"
+      player.position == relative.left -> "left"
+      player.position == relative.top -> "top"
+      player.position == relative.right -> "right"
+      true -> "waiting"
     end
   end
 
-  defp get_player_position(player, current_player) do
-    relative_positions = get_relative_positions(current_player.position)
-
-    cond do
-      player.position == current_player.position -> "bottom"
-      player.position == relative_positions.left -> "left"
-      player.position == relative_positions.top -> "top"
-      player.position == relative_positions.right -> "right"
-    end
+  defp seat_class(player, current_player) do
+    "seat-" <> seat_position(player, current_player)
   end
 
-  defp get_relative_positions(current_position) do
+  defp relative_positions(current_position) do
     case current_position do
       :east -> %{left: :south, top: :west, right: :north}
       :south -> %{left: :west, top: :north, right: :east}
@@ -131,6 +124,13 @@ defmodule MahjongWeb.GameLive do
     end
   end
 
+  defp position_label(nil), do: "-"
+
+  defp position_label(position) do
+    %{east: "东", south: "南", west: "西", north: "北"} |> Map.get(position)
+  end
+
+  # Wind labels around the center marker, from the viewer's perspective
   defp get_direction_markers(current_position) do
     case current_position do
       :east -> %{top: "西", left: "南", right: "北", bottom: "东"}

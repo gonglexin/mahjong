@@ -55,7 +55,7 @@ defmodule Mahjong.Player do
     end
 
     # Find the sequence tiles in hand
-    sequence =
+    _sequence =
       case tile.value - with_tile.value do
         -1 ->
           [tile.value, with_tile.value, with_tile.value + 1]

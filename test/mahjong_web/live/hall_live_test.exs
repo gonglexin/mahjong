@@ -19,7 +19,9 @@ defmodule MahjongWeb.HallLiveTest do
     assert rendered =~ ~r/<tr id="([^"]+)"/
     [_, id] = Regex.run(~r/<tr id="([^"]+)"/, rendered)
 
-    join_button = element(view, "button", "Join")
+    join_button =
+      element(view, "button[phx-click=\"join\"][phx-value-id=\"#{id}\"]")
+
     assert join_button |> has_element?()
 
     join_button |> render_click()

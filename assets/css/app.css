@@ -103,35 +103,220 @@
 
 /* This file is for your main application CSS */
 
-/** CSS for player position **/
-.player-bottom {
-  @apply absolute bottom-0 left-1/2 -translate-x-1/2;
+/** Game board **/
+.board-felt {
+  background: radial-gradient(ellipse at center, #2f7d54 0%, #1d5238 78%);
 }
 
-.player-left {
-  @apply absolute left-0 top-1/2 -translate-y-1/2 rotate-90;
+.seat {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 1rem;
 }
 
-.player-top {
-  @apply absolute top-0 left-1/2 -translate-x-1/2 rotate-180;
+.seat-id {
+  order: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  background: rgb(0 0 0 / 0.45);
+  color: rgb(255 251 235);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  white-space: nowrap;
 }
 
-.player-right {
-  @apply absolute right-0 top-1/2 -translate-y-1/2 -rotate-90;
+.seat-bottom {
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: column;
 }
 
-/** CSS for player hand **/
+.seat-top {
+  top: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: column-reverse;
+}
 
-@keyframes glowing {
-  0% {
-    box-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 20px #ffffff;
+.seat-left {
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: row-reverse;
+}
+
+.seat-right {
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: row;
+}
+
+/* Players without a seat (observers) render as chips at the top-left */
+.seat-waiting {
+  position: static;
+  flex-direction: row;
+  margin: 0.5rem;
+  width: fit-content;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.seat-waiting .discards,
+.seat-waiting .hand-row {
+  display: none;
+}
+
+.seat-in-turn {
+  animation: seat-glow 1.6s ease-in-out infinite;
+}
+
+@keyframes seat-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgb(52 211 153 / 0.9),
+      0 0 20px rgb(52 211 153 / 0.5);
   }
 
   50% {
-    box-shadow: 0 0 10px rgb(0 0 0 / 0.1), 0 0 20px rgb(0 0 0 / 0.1), 0 0 30px rgb(0 0 0 / 0.1);
+    box-shadow:
+      0 0 0 2px rgb(52 211 153 / 0.3),
+      0 0 6px rgb(52 211 153 / 0.15);
   }
+}
 
-  100% {
-    box-shadow: 0 0 5px #ffffff, 0 0 10px #ffffff, 0 0 20px #ffffff;
-  }
+.hand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hand {
+  display: flex;
+  gap: 2px;
+}
+
+.melds {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.meld {
+  display: flex;
+  gap: 2px;
+}
+
+.discards {
+  display: grid;
+  grid-template-columns: repeat(6, max-content);
+  gap: 3px;
+}
+
+/* Orientation of seats other than the bottom one */
+.seat-top .hand-row {
+  flex-direction: row-reverse;
+}
+
+.seat-left .hand-row,
+.seat-right .hand-row {
+  flex-direction: column;
+  align-items: center;
+}
+
+.seat-left .hand,
+.seat-right .hand,
+.seat-left .melds,
+.seat-right .melds,
+.seat-left .meld,
+.seat-right .meld {
+  flex-direction: column;
+}
+
+.seat-left .discards,
+.seat-right .discards {
+  grid-template-columns: none;
+  grid-template-rows: repeat(6, max-content);
+  grid-auto-flow: column;
+}
+
+/** Tiles **/
+
+.tile {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.tile > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 0.25rem;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+/* Portrait tiles for the bottom/top seats */
+.tile-hand {
+  width: 2.75rem;
+  height: 4rem;
+}
+
+.tile-discard {
+  width: 2rem;
+  height: 2.75rem;
+}
+
+.seat-top .tile-hand > img,
+.seat-top .tile-discard > img {
+  transform: rotate(180deg);
+}
+
+/* Landscape boxes with rotated faces for the left/right seats */
+.seat-left .tile-hand,
+.seat-right .tile-hand {
+  width: 3.5rem;
+  height: 2.5rem;
+}
+
+.seat-left .tile-hand > img,
+.seat-right .tile-hand > img {
+  width: 2.5rem;
+  height: 3.5rem;
+}
+
+.seat-left .tile-hand > img {
+  transform: rotate(90deg);
+}
+
+.seat-right .tile-hand > img {
+  transform: rotate(-90deg);
+}
+
+.seat-left .tile-discard,
+.seat-right .tile-discard {
+  width: 2.75rem;
+  height: 2rem;
+}
+
+.seat-left .tile-discard > img,
+.seat-right .tile-discard > img {
+  width: 2rem;
+  height: 2.75rem;
+}
+
+.seat-left .tile-discard > img {
+  transform: rotate(90deg);
+}
+
+.seat-right .tile-discard > img {
+  transform: rotate(-90deg);
 }

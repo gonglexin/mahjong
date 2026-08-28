@@ -3,6 +3,8 @@ defmodule Mahjong.Game do
 
   alias Mahjong.{Deck, Player}
 
+  @ai_token_prefix "ai-"
+
   def new(id) do
     state = {:ok, game} = GenServer.start(__MODULE__, id, name: String.to_atom(id))
 
@@ -68,7 +70,7 @@ defmodule Mahjong.Game do
     players =
       players
       |> Enum.zip(four_hands)
-      |> Enum.map(fn {player, hand} ->
+      |> Enum.map(fn {%Player{} = player, hand} ->
         %Player{player | hand: hand, open_hand: [], discards: [], in_turn?: false}
       end)
 
@@ -103,37 +105,39 @@ defmodule Mahjong.Game do
     {:reply, state, state}
   end
 
-  # TODO: Add AI agent players
   @impl true
-  def handle_call(:start_by_ai, _, state) do
+  def handle_call(:start_by_ai, _, %{id: id, players: players} = state) do
+    ai_players =
+      get_available_positions(players)
+      |> Enum.map(fn position ->
+        Player.new(token: "#{@ai_token_prefix}#{position}", position: position, game_id: id)
+      end)
+
+    players = Enum.map(ai_players, & &1) ++ players
+
     tiles = Deck.shuffle()
     {four_hands, tiles} = Deck.four_hands(tiles)
 
     players =
-      Deck.positions()
-      |> Enum.map(&Player.new(position: &1))
+      players
       |> Enum.zip(four_hands)
-      |> Enum.map(fn {player, hand} ->
-        %Player{player | hand: hand}
+      |> Enum.map(fn {%Player{} = player, hand} ->
+        %Player{player | hand: hand, open_hand: [], discards: [], in_turn?: false}
       end)
 
     [tile | left_tiles] = tiles
 
-    player =
-      Enum.shuffle(players)
-      |> List.first()
+    first = Player.draw(hd(players), tile)
 
     players =
-      players
-      |> Enum.map(fn p ->
-        if p.id == player.id do
-          Player.draw(player, tile)
-        else
-          p
-        end
+      Enum.map(players, fn p ->
+        if p.id == first.id, do: first, else: p
       end)
 
     state = %{state | tiles: left_tiles, players: players}
+
+    Mahjong.broadcast("games:#{id}", {:game_started, state})
+
     {:reply, state, state}
   end
 
@@ -261,11 +265,14 @@ defmodule Mahjong.Game do
   end
 
   defp get_available_position(players) do
-    positions = Enum.map(players, & &1.position)
-
-    Deck.positions()
-    |> Enum.reject(fn p -> p in positions end)
+    players
+    |> get_available_positions()
     |> List.first()
+  end
+
+  defp get_available_positions(players) do
+    taken = Enum.map(players, & &1.position)
+    Enum.reject(Deck.positions(), &(&1 in taken))
   end
 
   defp next_player(players, position, _tile) do
