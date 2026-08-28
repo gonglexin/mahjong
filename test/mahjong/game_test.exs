@@ -229,6 +229,78 @@ defmodule Mahjong.GameTest do
            )
   end
 
+  test "对家可碰未表态时，下家不见吃；对家过碰后下家立即出现吃" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:characters, 5)
+
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(:south, [tile(:characters, 3), tile(:characters, 4)] ++ filler(11))
+      |> hand_for(:west, pair(:characters, 5) ++ filler(11))
+      |> hand_for(:north, filler(13))
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    # 庄家打出 5 万：对家（西）可碰 → 主窗口只有西；下家（南）的吃被延迟
+    state = Game.action(game, dealer.id, {:discard, claimed})
+
+    south = Enum.find(state.players, &(&1.position == :south))
+    west = Enum.find(state.players, &(&1.position == :west))
+
+    assert state.pending.eligible == [west.id]
+    refute south.id in state.pending.eligible
+
+    # 对家放弃碰 → 延迟窗口激活，下家出现吃
+    state = Game.action(game, west.id, :pass)
+
+    assert state.pending.eligible == [south.id]
+    assert state.pending.actions[south.id] == [{:chow, 3}]
+
+    # 下家吃牌，完成流程
+    state = Game.action(game, south.id, {:chow, 3})
+
+    south = Enum.find(state.players, &(&1.position == :south))
+    assert [%{type: :chow, tiles: tiles}] = south.open_hand
+    assert Enum.map(tiles, & &1.value) == [3, 4, 5]
+    assert state.turn == south.id
+  end
+
+  test "对家与上家均超时放弃后，延迟吃窗口激活" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:characters, 5)
+
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(:south, [tile(:characters, 3), tile(:characters, 4)] ++ filler(11))
+      |> hand_for(:west, pair(:characters, 5) ++ filler(11))
+      |> hand_for(:north, pair(:characters, 5) ++ filler(11))
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    state = Game.action(game, dealer.id, {:discard, claimed})
+
+    # 主窗口包含对家与上家
+    west = Enum.find(state.players, &(&1.position == :west))
+    north = Enum.find(state.players, &(&1.position == :north))
+    assert Enum.sort(state.pending.eligible) == Enum.sort([west.id, north.id])
+
+    # 超时（等同全部放弃）→ 延迟吃窗口激活
+    send(game, :claim_timeout)
+    state = Game.state(game)
+
+    south = Enum.find(state.players, &(&1.position == :south))
+    assert state.pending.eligible == [south.id]
+    assert state.pending.actions[south.id] == [{:chow, 3}]
+  end
+
   test "上家绕过界面直接吃被拒绝" do
     %{game: game, players: players} = setup_game()
     state = Game.start(game)

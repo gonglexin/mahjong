@@ -165,20 +165,32 @@ defmodule Mahjong.Game do
           turn: nil
       }
 
-      claims = claim_eligible(state, tile, player_id)
+      options = claim_options(state, tile, player_id)
 
       state =
-        if claims == %{} do
-          draw_next(state)
-        else
-          state = start_claim_window(state, claims)
+        cond do
+          # 有人可碰/杠/胡：开主窗口；下家的吃延迟到主窗口全部放弃后再激活
+          options.immediate != %{} ->
+            state = start_claim_window(state, options.immediate, options.deferred)
 
-          # 可报牌者全部是 AI（已自动过）时直接轮到下一家
-          if all_passed?(state) do
-            state |> cancel_timer() |> draw_next()
-          else
-            state
-          end
+            if all_passed?(state) do
+              resolve_window(state)
+            else
+              state
+            end
+
+          # 无人可碰/杠/胡：下家的吃立刻开窗
+          options.deferred != %{} ->
+            state = start_claim_window(state, options.deferred, nil)
+
+            if all_passed?(state) do
+              resolve_window(state)
+            else
+              state
+            end
+
+          true ->
+            draw_next(state)
         end
 
       broadcast(state)
@@ -188,21 +200,20 @@ defmodule Mahjong.Game do
     end
   end
 
-  # -- 报牌（吃/碰/杠/胡/过）---------------------------------------------------
-
   def handle_call({player_id, :pass}, _, %{pending: pending} = state) when not is_nil(pending) do
     if player_id in pending.eligible do
       pending = %{pending | responses: Map.put(pending.responses, player_id, :pass)}
       state = %{state | pending: pending}
 
-      if all_passed?(state) do
-        state = cancel_timer(state) |> draw_next()
-        broadcast(state)
-        {:reply, state, state}
-      else
-        broadcast(state)
-        {:reply, state, state}
-      end
+      state =
+        if all_passed?(state) do
+          resolve_window(state)
+        else
+          state
+        end
+
+      broadcast(state)
+      {:reply, state, state}
     else
       {:reply, {:error, :not_eligible}, state}
     end
@@ -343,8 +354,11 @@ defmodule Mahjong.Game do
   # -- 报牌超时 ----------------------------------------------------------------
 
   @impl true
+  # 超时视为窗口内所有人放弃，同样要激活延迟的下家吃牌
   def handle_info(:claim_timeout, %{pending: pending} = state) when not is_nil(pending) do
-    state = cancel_timer(%{state | pending: nil}) |> draw_next()
+    pending = %{pending | responses: Map.new(pending.eligible, fn id -> {id, :pass} end)}
+
+    state = resolve_window(%{state | pending: pending})
     broadcast(state)
     {:noreply, state}
   end
@@ -397,7 +411,8 @@ defmodule Mahjong.Game do
 
   # -- 内部：报牌窗口 -----------------------------------------------------------
 
-  defp start_claim_window(state, claim_actions_by_player) do
+  # 开报牌窗口。deferred 为延迟激活的下家吃牌动作（主窗口全部放弃后生效）
+  defp start_claim_window(state, claim_actions_by_player, deferred) do
     eligible = Map.keys(claim_actions_by_player)
 
     # AI 玩家自动过
@@ -421,36 +436,67 @@ defmodule Mahjong.Game do
           eligible: eligible,
           responses: responses,
           timer: timer,
-          actions: claim_actions_by_player
+          actions: claim_actions_by_player,
+          deferred: deferred
         }
     }
   end
 
+  # 窗口内所有人表态完毕后推进：先激活延迟的下家吃牌，再轮到下一家摸牌
+  defp resolve_window(state) do
+    if all_passed?(state) do
+      deferred = Map.get(state.pending, :deferred)
+
+      if deferred in [nil, %{}] do
+        state |> cancel_timer() |> draw_next()
+      else
+        state
+        |> cancel_timer()
+        |> start_claim_window(deferred, nil)
+        |> then(fn st ->
+          if all_passed?(st), do: st |> cancel_timer() |> draw_next(), else: st
+        end)
+      end
+    else
+      state
+    end
+  end
+
   # 计算各家对弃牌可执行的动作：
-  #   * 胡/碰/杠：任何位置
-  #   * 吃：仅限下家（弃牌者的下一家）
-  # 返回 %{player_id => actions}
-  defp claim_eligible(state, tile, discarder_id) do
+  #   * 胡/碰/杠：任何位置 → 主窗口（immediate）
+  #   * 吃：仅限下家；若有人可碰/杠/胡，延迟到其全部放弃后（deferred）
+  defp claim_options(state, tile, discarder_id) do
     next_id = next_player_id(state.players, discarder_id)
 
-    Map.new(state.players, fn player ->
-      if player.id == discarder_id do
-        {player.id, []}
-      else
-        actions = Rules.claim_actions(player.hand, player.open_hand, tile)
+    {immediate_pairs, deferred_pairs} =
+      Enum.flat_map(state.players, fn player ->
+        if player.id == discarder_id do
+          []
+        else
+          actions = Rules.claim_actions(player.hand, player.open_hand, tile)
 
-        actions =
-          if player.id == next_id do
-            actions
+          actions =
+            if player.id == next_id do
+              actions
+            else
+              Enum.reject(actions, &match?({:chow, _}, &1))
+            end
+
+          if actions == [] do
+            []
           else
-            Enum.reject(actions, &match?({:chow, _}, &1))
+            # 含碰/杠/胡者进主窗口；纯吃（必为下家）进延迟窗口
+            has_take? = Enum.any?(actions, &(&1 in [:win, :pong] or match?({:kong_open}, &1)))
+            [{player.id, actions, has_take?}]
           end
+        end
+      end)
+      |> Enum.split_with(fn {_id, _actions, has_take?} -> has_take? end)
 
-        {player.id, actions}
-      end
-    end)
-    |> Enum.filter(fn {_id, actions} -> actions != [] end)
-    |> Map.new()
+    %{
+      immediate: Map.new(immediate_pairs, fn {id, actions, _} -> {id, actions} end),
+      deferred: Map.new(deferred_pairs, fn {id, actions, _} -> {id, actions} end)
+    }
   end
 
   defp all_passed?(%{pending: %{eligible: eligible, responses: responses}}) do
@@ -464,12 +510,13 @@ defmodule Mahjong.Game do
 
   defp cancel_timer(state), do: %{state | pending: nil}
 
-  # 胡 > 碰/杠 > 吃：他人可胡时，碰/杠/吃一律拒绝
+  # 胡 > 碰/杠/吃：有人尚未放弃且可胡时，碰/杠/吃被拒绝（已放弃者不阻塞）
   defp no_pending_win?(state, claimant_id) do
     {_discarder_id, tile} = state.last_discard
+    passed_ids = if state.pending, do: Map.keys(state.pending.responses), else: []
 
     not Enum.any?(state.players, fn player ->
-      player.id != claimant_id and
+      player.id != claimant_id and player.id not in passed_ids and
         :win in Rules.claim_actions(player.hand, player.open_hand, tile)
     end)
   end
