@@ -53,19 +53,36 @@ defmodule MahjongWeb.GameLiveTest do
   end
 
   describe "handle_info/2" do
-    test ":player_join renders unseated player without crashing", %{conn: conn} do
+    test ":game_update renders unseated player without crashing", %{conn: conn} do
       id = Ecto.UUID.generate()
       {:ok, _game} = Game.new(id)
       {:ok, view, _html} = live(conn, ~p"/game/#{id}")
 
       player = Player.new(token: "token-1")
-      send(view.pid, {:player_join, player})
+
+      send(
+        view.pid,
+        {:game_update,
+         %{
+           id: id,
+           tiles: [],
+           players: [player],
+           phase: :waiting,
+           dealer: nil,
+           turn: nil,
+           last_discard: nil,
+           pending: nil,
+           discards_made: 0,
+           kong_draw?: false,
+           result: nil
+         }}
+      )
 
       assert render(view) =~ "seat-waiting"
       assert render(view) =~ "token-1"
     end
 
-    test ":game_started - updates players and tile count", %{conn: conn} do
+    test ":game_update - updates players and tile count", %{conn: conn} do
       id = Ecto.UUID.generate()
       {:ok, _game} = Game.new(id)
       {:ok, view, _html} = live(conn, ~p"/game/#{id}")
@@ -77,7 +94,23 @@ defmodule MahjongWeb.GameLiveTest do
         |> Enum.zip(List.duplicate(hand, 4))
         |> Enum.map(fn {position, hand} -> %{Player.new(position: position) | hand: hand} end)
 
-      send(view.pid, {:game_started, %{tiles: [], players: players}})
+      send(
+        view.pid,
+        {:game_update,
+         %{
+           id: id,
+           tiles: [],
+           players: players,
+           phase: :playing,
+           dealer: :east,
+           turn: hd(players).id,
+           last_discard: nil,
+           pending: nil,
+           discards_made: 0,
+           kong_draw?: false,
+           result: nil
+         }}
+      )
 
       html = render(view)
       assert html =~ "seat-bottom"

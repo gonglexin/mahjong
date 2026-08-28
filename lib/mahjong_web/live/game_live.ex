@@ -1,7 +1,7 @@
 defmodule MahjongWeb.GameLive do
   use MahjongWeb, :live_view
 
-  alias Mahjong.{Game, Player}
+  alias Mahjong.{Game, Player, Rules}
 
   def mount(%{"id" => id}, session, socket) do
     if connected?(socket) do
@@ -22,11 +22,14 @@ defmodule MahjongWeb.GameLive do
             |> Enum.find(&(&1.token == token)) ||
               Player.new(token: token)
 
+          IO.inspect({token, Map.get(current_player, :token), Map.get(current_player, :position)},
+            label: "DBG mount player"
+          )
+
           socket
           |> assign(:game, game)
           |> assign(:current_player, current_player)
-          |> assign(:tile_size, length(Game.tiles(game)))
-          |> stream(:players, Game.players(game))
+          |> assign_game(Game.state(game))
 
         _ ->
           socket
@@ -47,10 +50,10 @@ defmodule MahjongWeb.GameLive do
   end
 
   def handle_event("start", _, socket) do
-    %{players: players} = Game.start(socket.assigns.game)
+    state = Game.start(socket.assigns.game)
 
     socket =
-      if length(players) < 4 do
+      if state.phase == :waiting do
         put_flash(socket, :error, "Must have 4 players")
       else
         socket
@@ -62,42 +65,134 @@ defmodule MahjongWeb.GameLive do
   def handle_event("start_by_ai", _, socket) do
     if is_nil(socket.assigns.current_player.game_id) do
       player = Game.join(socket.assigns.game, socket.assigns.current_player)
-      socket = assign(socket, :current_player, player)
       Game.start_by_ai(socket.assigns.game)
-      {:noreply, socket}
+      {:noreply, assign(socket, :current_player, player)}
     else
       Game.start_by_ai(socket.assigns.game)
       {:noreply, socket}
     end
   end
 
+  def handle_event("restart", _, socket) do
+    Game.reset(socket.assigns.game)
+    {:noreply, socket}
+  end
+
   def handle_event("discard", %{"id" => tile_id}, socket) do
-    tile = Enum.find(socket.assigns.current_player.hand, &(&1.id == tile_id))
-    Game.action(socket.assigns.game, socket.assigns.current_player.id, {:discard, tile})
+    %{current_player: player, game: game} = socket.assigns
+    tile = Enum.find(player.hand, &(&1.id == tile_id))
+
+    if player.game_id == Game.get_id(game) && tile do
+      Game.action(game, player.id, {:discard, tile})
+    end
+
     {:noreply, socket}
   end
 
-  def handle_info({:player_join, %Player{} = player}, socket) do
-    {:noreply, stream_insert(socket, :players, player)}
+  def handle_event("action", %{"value" => value}, socket) do
+    %{current_player: player, game: game} = socket.assigns
+    Game.action(game, player.id, parse_action(value))
+    {:noreply, socket}
   end
 
-  def handle_info({:game_started, %{tiles: tiles, players: players}}, socket) do
-    # Seated viewers get their dealt player; spectators keep the unseated one
+  def handle_info({:game_update, game_state}, socket) do
+    {:noreply, assign_game(socket, game_state)}
+  end
+
+  # -- 报牌窗口里可用动作的 UI 描述 ---------------------------------------------
+
+  defp action_buttons(actions) do
+    Enum.map(actions, fn
+      :win ->
+        %{label: "胡", value: "win", class: "btn-error"}
+
+      :pass ->
+        %{label: "过", value: "pass", class: "btn-ghost"}
+
+      :pong ->
+        %{label: "碰", value: "pong", class: "btn-warning"}
+
+      {:kong_open} ->
+        %{label: "杠", value: "kong_open", class: "btn-warning"}
+
+      {:chow, base} ->
+        %{label: "吃 #{base}-#{base + 1}-#{base + 2}", value: "chow:#{base}", class: "btn-info"}
+
+      {:kong_concealed, t} ->
+        %{
+          label: "暗杠 #{t.value}",
+          value: "kong_concealed:#{t.suit}:#{t.value}",
+          class: "btn-warning"
+        }
+
+      {:kong_added, t} ->
+        %{label: "加杠 #{t.value}", value: "kong_added:#{t.suit}:#{t.value}", class: "btn-warning"}
+    end)
+  end
+
+  defp parse_action("pass"), do: :pass
+  defp parse_action("win"), do: :win
+  defp parse_action("pong"), do: {:pong, nil}
+  defp parse_action("kong_open"), do: {:kong_open}
+  defp parse_action("chow:" <> base), do: {:chow, String.to_integer(base)}
+
+  defp parse_action("kong_concealed:" <> rest) do
+    {:kong_concealed, parse_tile(rest)}
+  end
+
+  defp parse_action("kong_added:" <> rest) do
+    {:kong_added, parse_tile(rest)}
+  end
+
+  defp parse_tile(value) do
+    [suit, v] = String.split(value, ":")
+    %Mahjong.Tile{id: "self", suit: String.to_existing_atom(suit), value: String.to_integer(v)}
+  end
+
+  # -- 状态同步 -----------------------------------------------------------------
+
+  defp assign_game(socket, game_state) do
+    current_player = socket.assigns.current_player
+    viewer = Enum.find(game_state.players, &(&1.id == current_player.id))
+
     current_player =
-      Enum.find(players, fn player -> player.id == socket.assigns.current_player.id end) ||
-        socket.assigns.current_player
+      if viewer, do: viewer, else: current_player
 
-    socket =
-      socket
-      |> assign(:current_player, current_player)
-      |> assign(:tile_size, length(tiles))
-      |> stream(:players, players, reset: true)
-
-    {:noreply, socket}
+    socket
+    |> assign(:current_player, current_player)
+    |> assign(:tile_size, length(game_state.tiles))
+    |> assign(:phase, game_state.phase)
+    |> assign(:dealer, game_state.dealer)
+    |> assign(:result, game_state.result)
+    |> assign(:action_buttons, action_buttons(viewer_actions(game_state, viewer)))
+    |> assign(:waiting_others, game_state.pending != nil)
+    |> stream(:players, game_state.players, reset: true)
   end
 
-  # Seats relative to the current viewer: bottom is always "me" when seated.
-  # Spectators view from the default east seat.
+  defp viewer_actions(_game_state, nil), do: []
+
+  defp viewer_actions(game_state, viewer) do
+    cond do
+      game_state.phase != :playing ->
+        []
+
+      match?(%{eligible: _}, game_state.pending) and
+          viewer.id in game_state.pending.eligible ->
+        {_, tile} = game_state.last_discard
+
+        Rules.claim_actions(viewer.hand, viewer.open_hand, tile) ++ [:pass]
+
+      game_state.turn == viewer.id ->
+        Rules.self_actions(viewer.hand, viewer.open_hand)
+
+      true ->
+        []
+    end
+  end
+
+  # -- 座位视图 -----------------------------------------------------------------
+
+  # 座位相对当前观战者：bottom 为自己；观战者以东风位视角观看
   defp seat_position(player, current_player) do
     viewer_seat = current_player.position || :east
     relative = relative_positions(viewer_seat)
@@ -115,14 +210,11 @@ defmodule MahjongWeb.GameLive do
     "seat-" <> seat_position(player, current_player)
   end
 
-  defp relative_positions(current_position) do
-    case current_position do
-      :east -> %{left: :south, top: :west, right: :north}
-      :south -> %{left: :west, top: :north, right: :east}
-      :west -> %{left: :north, top: :east, right: :south}
-      :north -> %{left: :east, top: :south, right: :west}
-    end
-  end
+  # 标准麻将视图：下家在自己右手边（行牌逆时针，屏幕上 bottom→right→top→left）
+  defp relative_positions(:east), do: %{left: :north, top: :west, right: :south}
+  defp relative_positions(:south), do: %{left: :east, top: :north, right: :west}
+  defp relative_positions(:west), do: %{left: :south, top: :east, right: :north}
+  defp relative_positions(:north), do: %{left: :west, top: :south, right: :east}
 
   defp position_label(nil), do: "-"
 
@@ -130,14 +222,20 @@ defmodule MahjongWeb.GameLive do
     %{east: "东", south: "南", west: "西", north: "北"} |> Map.get(position)
   end
 
-  # Wind labels around the center marker, from the viewer's perspective
+  # 中央风位标记：观战者视角
   defp get_direction_markers(current_position) do
-    case current_position do
-      :east -> %{top: "西", left: "南", right: "北", bottom: "东"}
-      :south -> %{top: "北", left: "西", right: "东", bottom: "南"}
-      :west -> %{top: "东", left: "北", right: "南", bottom: "西"}
-      :north -> %{top: "南", left: "东", right: "西", bottom: "北"}
-      nil -> %{top: "北", left: "西", right: "东", bottom: "南"}
-    end
+    viewer_seat = current_position || :east
+    relative = relative_positions(viewer_seat)
+
+    %{
+      top: position_label(relative.top),
+      left: position_label(relative.left),
+      right: position_label(relative.right),
+      bottom: position_label(viewer_seat)
+    }
+  end
+
+  defp fan_names(fans) do
+    Enum.map_join(fans, " · ", &Rules.fan_name/1)
   end
 end

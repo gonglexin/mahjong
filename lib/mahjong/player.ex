@@ -1,7 +1,15 @@
 defmodule Mahjong.Player do
-  defstruct [:id, :token, :position, :hand, :open_hand, :discards, :in_turn?, :game_id]
+  @moduledoc """
+  玩家状态与动作：摸牌、出牌、碰/吃/杠。副露以结构化 meld 表示：
+
+      %{type: :pong | :chow | :kong_open | :kong_concealed | :kong_added,
+        tiles: [tile], from: String.t() | nil}
+  """
+
+  defstruct [:id, :token, :position, :hand, :open_hand, :discards, :in_turn?, :game_id, :won?]
 
   alias Ecto.UUID
+  alias Mahjong.Tile
 
   def new(attrs \\ %{}) do
     %__MODULE__{
@@ -12,87 +20,93 @@ defmodule Mahjong.Player do
       open_hand: [],
       discards: [],
       in_turn?: false,
-      game_id: nil
+      game_id: nil,
+      won?: false
     }
   end
 
-  # Put tile at the end of hand
+  @doc "手牌按花色（万/筒/条）与点数排序"
+  def sort_hand(hand) do
+    Enum.sort_by(hand, &{Tile.suit_rank(&1.suit), &1.value})
+  end
+
+  @doc "摸牌（牌追加到手牌末端，即听牌位）"
   def draw(player, tile) do
     %{player | hand: player.hand ++ [tile], in_turn?: true}
   end
 
-  # TODO:
-  # 1. After discard, we need to resort tiles in hand
-  # 2. Construct discards list in a better way
+  @doc "出牌"
   def discard(player, tile) do
     %{
       player
-      | hand: List.delete(player.hand, tile),
+      | hand: Tile.remove_one(player.hand, tile),
         discards: player.discards ++ [tile],
         in_turn?: false
     }
   end
 
-  # TODO: get the right tiles to delete
-  def pong(player, tile) do
-    # Remove two matching tiles from hand
-    hand = List.delete(player.hand, tile)
-    hand = List.delete(hand, tile)
+  @doc "碰：手牌中两张同牌 + 别人打出的牌组成刻子"
+  def pong(player, tile, from_id) do
+    meld = %{type: :pong, tiles: List.duplicate(tile, 3), from: from_id}
 
-    # Add the pong set to open hand
-    open_hand = [{tile, tile, tile} | player.open_hand]
+    hand =
+      player.hand
+      |> Tile.remove_one(tile)
+      |> Tile.remove_one(tile)
 
-    %{player | hand: hand, open_hand: open_hand}
+    %{player | hand: hand, open_hand: [meld | player.open_hand]}
   end
 
-  @doc """
-  `with_tile` should be the least value in hand which used to chow
-  """
-  def chow(player, tile, with_tile) do
-    # Ensure tiles are of the same suit
-    if tile.suit != with_tile.suit do
-      raise ArgumentError, "Chow can only be made with tiles of the same suit"
-    end
+  @doc "吃：base 为顺子最小点数，claimed 为别人打出的牌"
+  def chow(player, claimed, base, from_id) do
+    tiles = for v <- base..(base + 2), do: %{claimed | value: v}
+    meld = %{type: :chow, tiles: tiles, from: from_id}
 
-    # Find the sequence tiles in hand
-    _sequence =
-      case tile.value - with_tile.value do
-        -1 ->
-          [tile.value, with_tile.value, with_tile.value + 1]
-
-        -2 ->
-          [tile.value, tile.value + 1, with_tile.value]
-
-        1 ->
-          [with_tile.value, tile.value, tile.value + 1]
-
-        2 ->
-          [with_tile.value, tile.value - 1, tile.value]
+    hand =
+      for v <- base..(base + 2), v != claimed.value, reduce: player.hand do
+        acc -> Tile.remove_one(acc, %{claimed | value: v})
       end
 
-    # Remove the two tiles used to form the chow from hand
-    hand = []
-    # sequence
-    # |> List.delete(with_tile.value)
-    # |> Enum.reduce(
-    #   player.hand,
-    #   fn value, acc -> List.delete(acc, %Tile{suit: with_tile.suit, value: value}) end
-    # )
-
-    # Add the chow sequence to open hand
-    chow_set = []
-    # sequence
-    # |> Enum.map(fn value ->
-    #   %Mahjong.Tile{suit: with_tile.suit, value: value}
-    # end)
-    # |> List.to_tuple()
-
-    open_hand = [chow_set | player.open_hand]
-
-    %{player | hand: hand, open_hand: open_hand}
+    %{player | hand: hand, open_hand: [meld | player.open_hand]}
   end
 
-  def kong(player, _tile \\ nil), do: player
-  def eyes(), do: nil
-  def win?(_player), do: false
+  @doc "明杠：手牌三张同牌 + 别人打出的牌"
+  def kong_open(player, tile, from_id) do
+    meld = %{type: :kong_open, tiles: List.duplicate(tile, 4), from: from_id}
+
+    hand =
+      1..3
+      |> Enum.reduce(player.hand, fn _, acc -> Tile.remove_one(acc, tile) end)
+
+    %{player | hand: hand, open_hand: [meld | player.open_hand]}
+  end
+
+  @doc "暗杠：手牌四张同牌"
+  def kong_concealed(player, tile) do
+    meld = %{type: :kong_concealed, tiles: List.duplicate(tile, 4), from: nil}
+
+    hand =
+      1..4
+      |> Enum.reduce(player.hand, fn _, acc -> Tile.remove_one(acc, tile) end)
+
+    %{player | hand: hand, open_hand: [meld | player.open_hand]}
+  end
+
+  @doc "加杠：已有碰的副露补入第四张"
+  def kong_added(player, tile) do
+    open_hand =
+      Enum.map(player.open_hand, fn meld ->
+        if meld.type == :pong and Tile.same?(hd(meld.tiles), tile) do
+          %{meld | type: :kong_added, tiles: meld.tiles ++ [tile]}
+        else
+          meld
+        end
+      end)
+
+    %{player | hand: Tile.remove_one(player.hand, tile), open_hand: open_hand}
+  end
+
+  def win(player) do
+    %{player | won?: true}
+  end
 end
