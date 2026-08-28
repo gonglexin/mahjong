@@ -165,13 +165,13 @@ defmodule Mahjong.Game do
           turn: nil
       }
 
-      eligible = claim_eligible(state, tile, player_id)
+      claims = claim_eligible(state, tile, player_id)
 
       state =
-        if eligible == [] do
+        if claims == %{} do
           draw_next(state)
         else
-          state = start_claim_window(state, eligible)
+          state = start_claim_window(state, claims)
 
           # 可报牌者全部是 AI（已自动过）时直接轮到下一家
           if all_passed?(state) do
@@ -211,6 +211,8 @@ defmodule Mahjong.Game do
   def handle_call({player_id, {:chow, base}}, _, %{phase: :playing} = state) do
     with %{pending: pending} when not is_nil(pending) <- state,
          {discarder_id, tile} <- state.last_discard,
+         # 吃牌仅限下家
+         true <- player_id == next_player_id(state.players, discarder_id),
          true <- player_id in pending.eligible,
          true <- no_pending_win?(state, player_id),
          %Player{} = player <- find_player(state, player_id),
@@ -395,7 +397,9 @@ defmodule Mahjong.Game do
 
   # -- 内部：报牌窗口 -----------------------------------------------------------
 
-  defp start_claim_window(state, eligible) do
+  defp start_claim_window(state, claim_actions_by_player) do
+    eligible = Map.keys(claim_actions_by_player)
+
     # AI 玩家自动过
     {ai_ids, human_ids} =
       Enum.split_with(eligible, fn player_id ->
@@ -411,15 +415,42 @@ defmodule Mahjong.Game do
         Process.send_after(self(), :claim_timeout, @claim_timeout_ms)
       end
 
-    %{state | pending: %{eligible: eligible, responses: responses, timer: timer}}
+    %{
+      state
+      | pending: %{
+          eligible: eligible,
+          responses: responses,
+          timer: timer,
+          actions: claim_actions_by_player
+        }
+    }
   end
 
+  # 计算各家对弃牌可执行的动作：
+  #   * 胡/碰/杠：任何位置
+  #   * 吃：仅限下家（弃牌者的下一家）
+  # 返回 %{player_id => actions}
   defp claim_eligible(state, tile, discarder_id) do
-    for player <- state.players,
-        player.id != discarder_id,
-        Rules.claim_actions(player.hand, player.open_hand, tile) != [] do
-      player.id
-    end
+    next_id = next_player_id(state.players, discarder_id)
+
+    Map.new(state.players, fn player ->
+      if player.id == discarder_id do
+        {player.id, []}
+      else
+        actions = Rules.claim_actions(player.hand, player.open_hand, tile)
+
+        actions =
+          if player.id == next_id do
+            actions
+          else
+            Enum.reject(actions, &match?({:chow, _}, &1))
+          end
+
+        {player.id, actions}
+      end
+    end)
+    |> Enum.filter(fn {_id, actions} -> actions != [] end)
+    |> Map.new()
   end
 
   defp all_passed?(%{pending: %{eligible: eligible, responses: responses}}) do

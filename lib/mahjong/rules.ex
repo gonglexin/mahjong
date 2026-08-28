@@ -198,23 +198,15 @@ defmodule Mahjong.Rules do
     actions =
       if Tile.count(hand, tile) >= 3, do: [{:kong_open} | actions], else: actions
 
+    # 吃：手牌提供顺子中除弃牌外的另外两张（弃牌本身来自别家）
     chows =
       for base <- [tile.value - 2, tile.value - 1, tile.value],
           base >= 1 and base + 2 <= 9,
-          has?(hand, tile.suit, base),
-          has?(hand, tile.suit, base + 1),
-          has?(hand, tile.suit, base + 2),
-          # 弃牌本身占一格，手牌只需提供另外两张
-          count_in_combo(hand, tile, base) >= 2,
+          needed = Enum.reject(base..(base + 2), &(&1 == tile.value)),
+          Enum.all?(needed, &has?(hand, tile.suit, &1)),
           do: {:chow, base}
 
     (actions ++ chows) |> Enum.uniq()
-  end
-
-  defp count_in_combo(hand, tile, base) do
-    Enum.count(hand, fn t ->
-      t.suit == tile.suit and t.value in [base, base + 1, base + 2]
-    end)
   end
 
   @doc """

@@ -4,6 +4,8 @@ defmodule Mahjong.GameTest do
 
   alias Mahjong.{Game, Player, Tile}
 
+  @suffix :erlang.unique_integer([:positive])
+
   defp tile(suit, value),
     do: %Tile{
       id: "#{suit}#{value}-#{:erlang.unique_integer([:positive])}",
@@ -12,7 +14,6 @@ defmodule Mahjong.GameTest do
     }
 
   defp seq(suit, base), do: for(v <- base..(base + 2), do: tile(suit, v))
-  defp triplet(suit, v), do: List.duplicate(tile(suit, v), 3)
   defp pair(suit, v), do: List.duplicate(tile(suit, v), 2)
   defp filler(n), do: for(i <- 1..n, do: tile(:bamboos, rem(i, 9) + 1))
 
@@ -197,6 +198,88 @@ defmodule Mahjong.GameTest do
     south = Enum.find(state.players, &(&1.position == :south))
     assert state.turn == south.id
     assert length(south.hand) == 14
+  end
+
+  test "吃牌仅限下家：下家动作含吃，上家不含" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:characters, 5)
+
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(:south, [tile(:characters, 3), tile(:characters, 4)] ++ filler(11))
+      |> hand_for(:north, [tile(:characters, 3), tile(:characters, 4)] ++ filler(11))
+      |> hand_for(:west, filler(13))
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    state = Game.action(game, dealer.id, {:discard, claimed})
+
+    south = Enum.find(state.players, &(&1.position == :south))
+
+    # 下家（南）只有 3-4-5 一种吃法；上家（北）同牌型但无吃权
+    assert state.pending.actions[south.id] == [{:chow, 3}]
+
+    refute Map.has_key?(
+             state.pending.actions,
+             Enum.find(state.players, &(&1.position == :north)).id
+           )
+  end
+
+  test "上家绕过界面直接吃被拒绝" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:characters, 5)
+
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(:north, [tile(:characters, 3), tile(:characters, 4)] ++ filler(11))
+      |> hand_for(:west, filler(13))
+      |> hand_for(:south, filler(13))
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    state = Game.action(game, dealer.id, {:discard, claimed})
+
+    north = Enum.find(state.players, &(&1.position == :north))
+    assert {:error, :invalid_claim} = Game.action(game, north.id, {:chow, 3})
+  end
+
+  test "下家吃牌后轮到其出牌" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:characters, 5)
+
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(:south, [tile(:characters, 3), tile(:characters, 4)] ++ filler(11))
+      |> hand_for(:west, filler(13))
+      |> hand_for(:north, filler(13))
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    state = Game.action(game, dealer.id, {:discard, claimed})
+    south = Enum.find(state.players, &(&1.position == :south))
+    state = Game.action(game, south.id, {:chow, 3})
+
+    south = Enum.find(state.players, &(&1.position == :south))
+    east = Enum.find(state.players, &(&1.position == :east))
+
+    assert state.turn == south.id
+    assert [%{type: :chow, tiles: tiles}] = south.open_hand
+    assert Enum.map(tiles, & &1.value) == [3, 4, 5]
+    assert length(south.hand) == 11
+    assert east.discards == []
+    assert length(state.tiles) == 30
   end
 
   test "点炮胡：报牌窗口内胡牌结算" do

@@ -178,9 +178,7 @@ defmodule MahjongWeb.GameLive do
 
       match?(%{eligible: _}, game_state.pending) and
           viewer.id in game_state.pending.eligible ->
-        {_, tile} = game_state.last_discard
-
-        Rules.claim_actions(viewer.hand, viewer.open_hand, tile) ++ [:pass]
+        Map.get(game_state.pending[:actions] || %{}, viewer.id, []) ++ [:pass]
 
       game_state.turn == viewer.id ->
         Rules.self_actions(viewer.hand, viewer.open_hand)
