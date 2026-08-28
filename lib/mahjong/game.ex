@@ -169,25 +169,18 @@ defmodule Mahjong.Game do
 
       state =
         cond do
-          # 有人可碰/杠/胡：开主窗口；下家的吃延迟到主窗口全部放弃后再激活
-          options.immediate != %{} ->
-            state = start_claim_window(state, options.immediate, options.deferred)
+          # 胡 > 碰/杠 > 吃：按优先级依次开窗，前一阶段全部放弃才进入下一阶段
+          options.win != %{} ->
+            state = start_claim_window(state, :win, options.win, options.take, options.chow)
+            if all_passed?(state), do: resolve_window(state), else: state
 
-            if all_passed?(state) do
-              resolve_window(state)
-            else
-              state
-            end
+          options.take != %{} ->
+            state = start_claim_window(state, :take, options.take, nil, options.chow)
+            if all_passed?(state), do: resolve_window(state), else: state
 
-          # 无人可碰/杠/胡：下家的吃立刻开窗
-          options.deferred != %{} ->
-            state = start_claim_window(state, options.deferred, nil)
-
-            if all_passed?(state) do
-              resolve_window(state)
-            else
-              state
-            end
+          options.chow != %{} ->
+            state = start_claim_window(state, :chow, options.chow, nil, nil)
+            if all_passed?(state), do: resolve_window(state), else: state
 
           true ->
             draw_next(state)
@@ -220,12 +213,11 @@ defmodule Mahjong.Game do
   end
 
   def handle_call({player_id, {:chow, base}}, _, %{phase: :playing} = state) do
-    with %{pending: pending} when not is_nil(pending) <- state,
+    with %{pending: %{phase: :chow} = pending} when not is_nil(pending) <- state,
          {discarder_id, tile} <- state.last_discard,
-         # 吃牌仅限下家
+         # 吃只能在吃阶段，且仅限下家
          true <- player_id == next_player_id(state.players, discarder_id),
          true <- player_id in pending.eligible,
-         true <- no_pending_win?(state, player_id),
          %Player{} = player <- find_player(state, player_id),
          true <- valid_chow?(player.hand, tile, base) do
       player = Player.chow(player, tile, base, discarder_id)
@@ -251,7 +243,7 @@ defmodule Mahjong.Game do
   def handle_call({player_id, :win}, _, %{phase: :playing} = state) do
     cond do
       # 点炮：报牌窗口内胡别人打出的牌（先到先得即截胡）
-      match?(%{eligible: _}, state.pending) and win_on_discard?(state, player_id) ->
+      match?(%{phase: :win, eligible: _}, state.pending) and win_on_discard?(state, player_id) ->
         {_discarder_id, tile} = state.last_discard
         player = find_player(state, player_id)
 
@@ -411,9 +403,9 @@ defmodule Mahjong.Game do
 
   # -- 内部：报牌窗口 -----------------------------------------------------------
 
-  # 开报牌窗口。deferred 为延迟激活的下家吃牌动作（主窗口全部放弃后生效）
-  defp start_claim_window(state, claim_actions_by_player, deferred) do
-    eligible = Map.keys(claim_actions_by_player)
+  # 开指定阶段的报牌窗口。take/chow 为后续阶段的动作表，随窗口携带
+  defp start_claim_window(state, phase, claims, take, chow) do
+    eligible = Map.keys(claims)
 
     # AI 玩家自动过
     {ai_ids, human_ids} =
@@ -433,70 +425,76 @@ defmodule Mahjong.Game do
     %{
       state
       | pending: %{
+          phase: phase,
           eligible: eligible,
           responses: responses,
           timer: timer,
-          actions: claim_actions_by_player,
-          deferred: deferred
+          actions: claims,
+          take: take || %{},
+          chow: chow || %{}
         }
     }
   end
 
-  # 窗口内所有人表态完毕后推进：先激活延迟的下家吃牌，再轮到下一家摸牌
+  # 当前阶段全部表态完毕后推进：胡 →(放弃)→ 碰/杠 →(放弃)→ 吃 → 摸牌
   defp resolve_window(state) do
     if all_passed?(state) do
-      deferred = Map.get(state.pending, :deferred)
+      pending = state.pending
+      state = cancel_timer(state)
 
-      if deferred in [nil, %{}] do
-        state |> cancel_timer() |> draw_next()
-      else
-        state
-        |> cancel_timer()
-        |> start_claim_window(deferred, nil)
-        |> then(fn st ->
-          if all_passed?(st), do: st |> cancel_timer() |> draw_next(), else: st
-        end)
+      cond do
+        pending.phase == :win and pending.take != %{} ->
+          state = start_claim_window(state, :take, pending.take, nil, pending.chow)
+          if all_passed?(state), do: resolve_window(state), else: state
+
+        pending.chow != %{} ->
+          state = start_claim_window(state, :chow, pending.chow, nil, nil)
+          if all_passed?(state), do: resolve_window(state), else: state
+
+        true ->
+          draw_next(state)
       end
     else
       state
     end
   end
 
-  # 计算各家对弃牌可执行的动作：
-  #   * 胡/碰/杠：任何位置 → 主窗口（immediate）
-  #   * 吃：仅限下家；若有人可碰/杠/胡，延迟到其全部放弃后（deferred）
+  # 计算各家对弃牌可执行的动作，按优先级分三个阶段：
+  #   * 胡（:win）：任何位置
+  #   * 碰/杠（:take）：任何位置
+  #   * 吃（:chow）：仅限下家
+  # 同一玩家可同时出现在多个阶段（如既能胡又能碰：先问胡，放弃后再问碰）
   defp claim_options(state, tile, discarder_id) do
     next_id = next_player_id(state.players, discarder_id)
 
-    {immediate_pairs, deferred_pairs} =
-      Enum.flat_map(state.players, fn player ->
-        if player.id == discarder_id do
-          []
-        else
-          actions = Rules.claim_actions(player.hand, player.open_hand, tile)
+    Enum.reduce(state.players, {%{}, %{}, %{}}, fn player, {win, take, chow} ->
+      if player.id == discarder_id do
+        {win, take, chow}
+      else
+        actions = Rules.claim_actions(player.hand, player.open_hand, tile)
 
-          actions =
-            if player.id == next_id do
-              actions
-            else
-              Enum.reject(actions, &match?({:chow, _}, &1))
-            end
+        win =
+          if :win in actions, do: Map.put(win, player.id, [:win]), else: win
 
-          if actions == [] do
-            []
+        take_actions = Enum.filter(actions, &(&1 in [:pong] or match?({:kong_open}, &1)))
+
+        take =
+          if take_actions == [], do: take, else: Map.put(take, player.id, take_actions)
+
+        chow_actions =
+          if player.id == next_id do
+            Enum.filter(actions, &match?({:chow, _}, &1))
           else
-            # 含碰/杠/胡者进主窗口；纯吃（必为下家）进延迟窗口
-            has_take? = Enum.any?(actions, &(&1 in [:win, :pong] or match?({:kong_open}, &1)))
-            [{player.id, actions, has_take?}]
+            []
           end
-        end
-      end)
-      |> Enum.split_with(fn {_id, _actions, has_take?} -> has_take? end)
 
-    %{
-      immediate: Map.new(immediate_pairs, fn {id, actions, _} -> {id, actions} end),
-      deferred: Map.new(deferred_pairs, fn {id, actions, _} -> {id, actions} end)
-    }
+        chow =
+          if chow_actions == [], do: chow, else: Map.put(chow, player.id, chow_actions)
+
+        {win, take, chow}
+      end
+    end)
+    |> then(fn {win, take, chow} -> %{win: win, take: take, chow: chow} end)
   end
 
   defp all_passed?(%{pending: %{eligible: eligible, responses: responses}}) do
@@ -509,17 +507,6 @@ defmodule Mahjong.Game do
   end
 
   defp cancel_timer(state), do: %{state | pending: nil}
-
-  # 胡 > 碰/杠/吃：有人尚未放弃且可胡时，碰/杠/吃被拒绝（已放弃者不阻塞）
-  defp no_pending_win?(state, claimant_id) do
-    {_discarder_id, tile} = state.last_discard
-    passed_ids = if state.pending, do: Map.keys(state.pending.responses), else: []
-
-    not Enum.any?(state.players, fn player ->
-      player.id != claimant_id and player.id not in passed_ids and
-        :win in Rules.claim_actions(player.hand, player.open_hand, tile)
-    end)
-  end
 
   defp win_on_discard?(state, player_id) do
     case state.last_discard do
@@ -548,10 +535,9 @@ defmodule Mahjong.Game do
   end
 
   defp handle_claim_kong_pong(state, player_id, action) do
-    with %{pending: pending} when not is_nil(pending) <- state,
+    with %{pending: %{phase: :take} = pending} when not is_nil(pending) <- state,
          {discarder_id, tile} <- state.last_discard,
          true <- player_id in pending.eligible,
-         true <- no_pending_win?(state, player_id),
          %Player{} = player <- find_player(state, player_id),
          true <- valid_claim?(player, tile, action) do
       player =

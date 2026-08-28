@@ -15,6 +15,7 @@ defmodule Mahjong.GameTest do
 
   defp seq(suit, base), do: for(v <- base..(base + 2), do: tile(suit, v))
   defp pair(suit, v), do: List.duplicate(tile(suit, v), 2)
+  defp triplet(suit, v), do: List.duplicate(tile(suit, v), 3)
   defp filler(n), do: for(i <- 1..n, do: tile(:bamboos, rem(i, 9) + 1))
 
   defp setup_game do
@@ -464,5 +465,109 @@ defmodule Mahjong.GameTest do
 
     assert state.phase == :over
     assert state.result.type == :wall_empty
+  end
+
+  test "可胡又可碰的玩家：先问胡，放弃后再问碰" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:dots, 2)
+
+    # 南家：123/456/789万 + 22筒 —— 既能胡又能碰；西家：仅能碰
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(
+        :south,
+        seq(:characters, 1) ++
+          seq(:characters, 4) ++
+          seq(:characters, 7) ++ [tile(:dots, 2), tile(:dots, 2), tile(:dots, 3), tile(:dots, 4)]
+      )
+      |> hand_for(:west, pair(:dots, 2) ++ filler(11))
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    state = Game.action(game, dealer.id, {:discard, claimed})
+
+    south = Enum.find(state.players, &(&1.position == :south))
+    west = Enum.find(state.players, &(&1.position == :west))
+
+    # 第一阶段：只问胡
+    assert state.pending.phase == :win
+    assert state.pending.eligible == [south.id]
+    assert state.pending.actions[south.id] == [:win]
+    refute west.id in state.pending.eligible
+
+    # 南家放弃胡 → 第二阶段：碰
+    state = Game.action(game, south.id, :pass)
+
+    assert state.pending.phase == :take
+    assert Enum.sort(state.pending.eligible) == Enum.sort([south.id, west.id])
+    assert :pong in state.pending.actions[south.id]
+    assert :pong in state.pending.actions[west.id]
+
+    # 西家碰成立
+    state = Game.action(game, west.id, {:pong, nil})
+
+    west = Enum.find(state.players, &(&1.position == :west))
+    assert [%{type: :pong}] = west.open_hand
+    assert state.turn == west.id
+  end
+
+  test "胡→碰→吃 全链路：每一阶段都要等待放弃" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:characters, 5)
+
+    # 北家可胡 5 万（万子牌型 333 + 55 将）；西家可碰；南家可吃
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(:south, [tile(:characters, 3), tile(:characters, 4)] ++ filler(11))
+      |> hand_for(:west, pair(:characters, 5) ++ filler(11))
+      |> hand_for(
+        :north,
+        seq(:characters, 1) ++
+          seq(:characters, 4) ++
+          seq(:characters, 7) ++ seq(:dots, 7) ++ [tile(:characters, 5)]
+      )
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    state = Game.action(game, dealer.id, {:discard, claimed})
+
+    south = Enum.find(state.players, &(&1.position == :south))
+    west = Enum.find(state.players, &(&1.position == :west))
+    north = Enum.find(state.players, &(&1.position == :north))
+
+    # 阶段一：胡
+    assert state.pending.phase == :win
+    assert state.pending.eligible == [north.id]
+
+    # 北家放弃胡 → 阶段二：碰
+    state = Game.action(game, north.id, :pass)
+    assert state.pending.phase == :take
+
+    # 西家和北家手里都有 5 万对子，均可碰
+    assert Enum.sort(state.pending.eligible) == Enum.sort([west.id, north.id])
+    assert :pong in state.pending.actions[west.id]
+    assert :pong in state.pending.actions[north.id]
+
+    # 西家、北家都放弃碰 → 阶段三：吃
+    state = Game.action(game, west.id, :pass)
+    assert state.pending.phase == :take
+
+    state = Game.action(game, north.id, :pass)
+    assert state.pending.phase == :chow
+    assert state.pending.eligible == [south.id]
+
+    # 南家吃
+    state = Game.action(game, south.id, {:chow, 3})
+    south = Enum.find(state.players, &(&1.position == :south))
+    assert [%{type: :chow}] = south.open_hand
+    assert state.turn == south.id
   end
 end
