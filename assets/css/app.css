@@ -206,6 +206,17 @@
   flex-direction: row-reverse;
 }
 
+/* 左家（面朝右）：副露移到手牌右侧（靠桌心，玩家前方），与右家对称 */
+.seat-left .hand-row {
+  flex-direction: row-reverse;
+}
+
+/* 侧家副露与手牌顶部对齐（一条线），不垂直悬空 */
+.seat-left .hand-row,
+.seat-right .hand-row {
+  align-items: flex-start;
+}
+
 .seat-left .hand,
 .seat-right .hand,
 .seat-left .melds,
