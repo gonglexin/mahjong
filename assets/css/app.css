@@ -221,6 +221,15 @@
   flex-direction: column;
 }
 
+/* 副露按玩家视角从左起：上家（面朝下）左=屏幕右，左家（面朝右）左=屏幕下 */
+.seat-top .melds {
+  flex-direction: row-reverse;
+}
+
+.seat-left .melds {
+  flex-direction: column-reverse;
+}
+
 .seat-left .discards,
 .seat-right .discards {
   grid-template-columns: none;

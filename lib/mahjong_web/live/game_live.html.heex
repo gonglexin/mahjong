@@ -71,16 +71,16 @@
         class={["seat", seat_class(player, @current_player)]}
         data-position={seat_position(player, @current_player)}
       >
-        <%!-- 副露 --%>
+        <%!-- 弃牌（朝桌心） --%>
+        <div class="discards">
+          <.tile :for={tile <- player.discards} tile={tile} show={true} class="tile-discard" />
+        </div>
+
+        <%!-- 副露（紧贴手牌，按玩家视角从左起） --%>
         <div class="melds">
           <div :for={meld <- player.open_hand} class="meld">
             <.tile :for={tile <- meld.tiles} tile={tile} show={true} class="tile-discard" />
           </div>
-        </div>
-
-        <%!-- 弃牌 --%>
-        <div class="discards">
-          <.tile :for={tile <- player.discards} tile={tile} show={true} class="tile-discard" />
         </div>
 
         <%!-- 手牌 --%>
