@@ -173,25 +173,6 @@
   display: none;
 }
 
-.seat-in-turn {
-  animation: seat-glow 1.6s ease-in-out infinite;
-}
-
-@keyframes seat-glow {
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 2px rgb(52 211 153 / 0.9),
-      0 0 20px rgb(52 211 153 / 0.5);
-  }
-
-  50% {
-    box-shadow:
-      0 0 0 2px rgb(52 211 153 / 0.3),
-      0 0 6px rgb(52 211 153 / 0.15);
-  }
-}
-
 .hand-row {
   display: flex;
   align-items: center;
@@ -263,10 +244,12 @@
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
 }
 
-.wind-char-self {
+.wind-char-turn {
   border-color: rgb(254 243 199 / 0.9);
   background: linear-gradient(160deg, #fcd34d, #d97706);
   color: #451a03;
+  transform: scale(1.1);
+  box-shadow: 0 0 10px rgb(251 191 36 / 0.55);
 }
 
 /** Tiles **/

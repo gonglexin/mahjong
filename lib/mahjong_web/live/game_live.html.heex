@@ -22,25 +22,34 @@
         <div class="absolute inset-2 rounded-full border border-emerald-200/10"></div>
         <div class="absolute inset-7 rounded-full border border-emerald-200/10"></div>
 
+        <%!-- 罗盘：方位字落在正方位，当前出牌者的风位牌金色高亮 --%>
         <div class="absolute inset-0 grid grid-cols-3 grid-rows-3 place-items-center">
           <span></span>
-          <span class={wind_chip_class(:top)}>
-            {get_direction_markers(@current_player.position)[:top]}
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).top, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).top)}
           </span>
           <span></span>
-          <span class={wind_chip_class(:left)}>
-            {get_direction_markers(@current_player.position)[:left]}
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).left, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).left)}
           </span>
           <span class="relative flex h-16 w-16 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-800 to-emerald-950 ring-1 ring-amber-200/25">
             <span class="text-2xl font-bold leading-none text-amber-200">{@tile_size}</span>
             <span class="mt-1 text-[10px] tracking-widest text-emerald-100/70">余牌</span>
           </span>
-          <span class={wind_chip_class(:right)}>
-            {get_direction_markers(@current_player.position)[:right]}
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).right, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).right)}
           </span>
           <span></span>
-          <span class={wind_chip_class(:bottom)}>
-            {get_direction_markers(@current_player.position)[:bottom]}
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).bottom, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).bottom)}
           </span>
           <span></span>
         </div>
@@ -51,11 +60,7 @@
       <div
         :for={{id, player} <- @streams.players}
         id={id}
-        class={[
-          "seat",
-          seat_class(player, @current_player),
-          player.in_turn? && "seat-in-turn"
-        ]}
+        class={["seat", seat_class(player, @current_player)]}
         data-position={seat_position(player, @current_player)}
       >
         <%!-- 副露 --%>
@@ -95,7 +100,6 @@
         <div class="seat-id">
           <span class="font-bold">{position_label(player.position)}</span>
           <span>{String.slice(player.token || player.id, 0, 8)}</span>
-          <.icon :if={player.in_turn?} name="hero-arrow-path" class="w-3 h-3 animate-spin" />
         </div>
       </div>
     </div>

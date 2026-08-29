@@ -169,8 +169,11 @@ defmodule MahjongWeb.GameLive do
     current_player =
       if viewer, do: viewer, else: current_player
 
+    turn_player = Enum.find(game_state.players, &(&1.id == game_state.turn))
+
     socket
     |> assign(:current_player, current_player)
+    |> assign(:turn_position, turn_player && turn_player.position)
     |> assign(:tile_size, length(game_state.tiles))
     |> assign(:phase, game_state.phase)
     |> assign(:dealer, game_state.dealer)
@@ -199,9 +202,10 @@ defmodule MahjongWeb.GameLive do
     end
   end
 
-  # 罗盘风位牌：自己（底部）的方位高亮
-  defp wind_chip_class(:bottom), do: "wind-char wind-char-self"
-  defp wind_chip_class(_), do: "wind-char"
+  # 罗盘风位牌：当前出牌者的方位金色高亮
+  defp wind_chip_class(seat, turn_position) do
+    if seat == turn_position, do: "wind-char wind-char-turn", else: "wind-char"
+  end
 
   # -- 座位视图 -----------------------------------------------------------------
 
@@ -235,16 +239,16 @@ defmodule MahjongWeb.GameLive do
     %{east: "东", south: "南", west: "西", north: "北"} |> Map.get(position)
   end
 
-  # 中央风位标记：观战者视角
-  defp get_direction_markers(current_position) do
+  # 罗盘方位（观战者以东风位视角观看），值为座位
+  defp compass_seats(current_position) do
     viewer_seat = current_position || :east
     relative = relative_positions(viewer_seat)
 
     %{
-      top: position_label(relative.top),
-      left: position_label(relative.left),
-      right: position_label(relative.right),
-      bottom: position_label(viewer_seat)
+      top: relative.top,
+      left: relative.left,
+      right: relative.right,
+      bottom: viewer_seat
     }
   end
 
