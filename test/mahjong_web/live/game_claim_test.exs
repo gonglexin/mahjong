@@ -105,7 +105,7 @@ defmodule MahjongWeb.GameClaimTest do
 
     # 乙点击碰，完成碰牌
     view_b
-    |> element("button[phx-value-value=\"pong\"]")
+    |> element("button[phx-value-action=\"pong\"]")
     |> render_click()
 
     state = Game.state(game)

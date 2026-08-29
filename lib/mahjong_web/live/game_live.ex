@@ -85,7 +85,7 @@ defmodule MahjongWeb.GameLive do
     {:noreply, socket}
   end
 
-  def handle_event("action", %{"value" => value}, socket) do
+  def handle_event("action", %{"action" => value}, socket) do
     %{current_player: player, game: game} = socket.assigns
 
     # 热重载/陈旧 DOM 可能送来未知动作，安全忽略

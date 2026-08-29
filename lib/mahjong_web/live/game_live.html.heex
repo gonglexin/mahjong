@@ -95,7 +95,7 @@
         :for={button <- @action_buttons}
         class={["btn btn-sm shadow-lg", button.class]}
         phx-click="action"
-        phx-value-value={button.value}
+        phx-value-action={button.value}
       >
         {button.label}
       </button>
