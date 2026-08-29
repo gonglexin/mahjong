@@ -199,6 +199,23 @@ defmodule MahjongWeb.GameLive do
     end
   end
 
+  # 手牌展示：刚摸的牌不参与排序，置于末端并留出间距
+  defp hand_tiles(player) do
+    case player.drawn do
+      nil ->
+        player.hand |> Player.sort_hand() |> Enum.map(&{&1, false})
+
+      drawn ->
+        sorted =
+          player.hand
+          |> Enum.reject(&(&1.id == drawn.id))
+          |> Player.sort_hand()
+          |> Enum.map(&{&1, false})
+
+        sorted ++ [{drawn, true}]
+    end
+  end
+
   # 罗盘风位牌：当前出牌者的方位金色高亮
   defp wind_chip_class(seat, turn_position) do
     if seat == turn_position, do: "wind-char wind-char-turn", else: "wind-char"

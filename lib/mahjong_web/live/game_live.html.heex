@@ -87,11 +87,12 @@
         <div class="hand-row">
           <div class="hand">
             <.tile
-              :for={tile <- Player.sort_hand(player.hand)}
+              :for={{tile, is_drawn} <- hand_tiles(player)}
               tile={tile}
               show={@current_player.id == player.id or @phase == :over}
               class={[
                 "tile-hand",
+                is_drawn && "ml-4",
                 @current_player.id == player.id && @phase == :playing &&
                   "cursor-pointer hover:-translate-y-2 transition-transform"
               ]}

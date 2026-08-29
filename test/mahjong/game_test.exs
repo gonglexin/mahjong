@@ -128,6 +128,18 @@ defmodule Mahjong.GameTest do
     assert state.turn == south.id
     assert length(south.hand) == 14
     assert length(state.tiles) == 29
+
+    # 摸进的牌标记为 drawn
+    assert south.drawn != nil
+
+    # 南家出一张非摸进的牌 → drawn 清除，手牌回到排序状态（13 张）
+    discard_tile = Enum.find(south.hand, &(&1.id != south.drawn.id))
+    state = Game.action(game, south.id, {:discard, discard_tile})
+    south = Enum.find(state.players, &(&1.position == :south))
+
+    assert is_nil(south.drawn)
+    assert length(south.hand) == 13
+    assert south.hand == Player.sort_hand(south.hand)
   end
 
   test "两张相同牌出其一后，同 id 的重复出牌请求被拒绝" do
