@@ -206,12 +206,6 @@
   flex-direction: row-reverse;
 }
 
-.seat-left .hand-row,
-.seat-right .hand-row {
-  flex-direction: column;
-  align-items: center;
-}
-
 .seat-left .hand,
 .seat-right .hand,
 .seat-left .melds,

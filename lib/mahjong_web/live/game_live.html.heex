@@ -76,15 +76,14 @@
           <.tile :for={tile <- player.discards} tile={tile} show={true} class="tile-discard" />
         </div>
 
-        <%!-- 副露（紧贴手牌，按玩家视角从左起） --%>
-        <div class="melds">
-          <div :for={meld <- player.open_hand} class="meld">
-            <.tile :for={tile <- meld.tiles} tile={tile} show={true} class="tile-discard" />
-          </div>
-        </div>
-
-        <%!-- 手牌 --%>
+        <%!-- 手牌行：副露紧贴手牌左侧，单组副露不再居中悬空 --%>
         <div class="hand-row">
+          <div class="melds">
+            <div :for={meld <- player.open_hand} class="meld">
+              <.tile :for={tile <- meld.tiles} tile={tile} show={true} class="tile-discard" />
+            </div>
+          </div>
+
           <div class="hand">
             <.tile
               :for={{tile, is_drawn} <- hand_tiles(player)}
