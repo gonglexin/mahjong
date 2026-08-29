@@ -13,24 +13,38 @@
     id="game-board"
     class="board-felt relative h-[760px] rounded-2xl overflow-hidden shadow-inner"
   >
-    <%!-- 中央：风位标记与余牌 --%>
+    <%!-- 中央：风位罗盘与余牌 --%>
     <div
       id="position_marker"
-      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-emerald-900/60 border border-emerald-300/30 shadow-xl pointer-events-none"
+      class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none"
     >
-      <div class="absolute inset-0 grid grid-cols-2 place-items-center text-lg font-semibold text-emerald-50/90">
-        <span>{get_direction_markers(@current_player.position)[:top]}</span>
-        <span>{get_direction_markers(@current_player.position)[:right]}</span>
-        <span>{get_direction_markers(@current_player.position)[:left]}</span>
-        <span>{get_direction_markers(@current_player.position)[:bottom]}</span>
-      </div>
-    </div>
+      <div class="relative flex h-48 w-48 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-950/55 shadow-[inset_0_2px_16px_rgba(0,0,0,0.45)]">
+        <div class="absolute inset-2 rounded-full border border-emerald-200/10"></div>
+        <div class="absolute inset-7 rounded-full border border-emerald-200/10"></div>
 
-    <div
-      id="left_tile_size"
-      class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[130px] text-sm text-emerald-100/90 tracking-widest pointer-events-none"
-    >
-      余牌 {@tile_size}
+        <div class="absolute inset-0 grid grid-cols-3 grid-rows-3 place-items-center">
+          <span></span>
+          <span class={wind_chip_class(:top)}>
+            {get_direction_markers(@current_player.position)[:top]}
+          </span>
+          <span></span>
+          <span class={wind_chip_class(:left)}>
+            {get_direction_markers(@current_player.position)[:left]}
+          </span>
+          <span class="relative flex h-16 w-16 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-800 to-emerald-950 ring-1 ring-amber-200/25">
+            <span class="text-2xl font-bold leading-none text-amber-200">{@tile_size}</span>
+            <span class="mt-1 text-[10px] tracking-widest text-emerald-100/70">余牌</span>
+          </span>
+          <span class={wind_chip_class(:right)}>
+            {get_direction_markers(@current_player.position)[:right]}
+          </span>
+          <span></span>
+          <span class={wind_chip_class(:bottom)}>
+            {get_direction_markers(@current_player.position)[:bottom]}
+          </span>
+          <span></span>
+        </div>
+      </div>
     </div>
 
     <div id="players" phx-update="stream">

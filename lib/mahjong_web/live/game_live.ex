@@ -199,6 +199,10 @@ defmodule MahjongWeb.GameLive do
     end
   end
 
+  # 罗盘风位牌：自己（底部）的方位高亮
+  defp wind_chip_class(:bottom), do: "wind-char wind-char-self"
+  defp wind_chip_class(_), do: "wind-char"
+
   # -- 座位视图 -----------------------------------------------------------------
 
   # 座位相对当前观战者：bottom 为自己；观战者以东风位视角观看
