@@ -6,10 +6,38 @@ defmodule Mahjong.Player do
         tiles: [tile], from: String.t() | nil}
   """
 
-  defstruct [:id, :token, :position, :hand, :open_hand, :discards, :in_turn?, :game_id, :won?]
+  defstruct [
+    :id,
+    :token,
+    :position,
+    :hand,
+    :open_hand,
+    :discards,
+    :in_turn?,
+    :game_id,
+    :won?,
+    :persona
+  ]
 
   alias Ecto.UUID
   alias Mahjong.Tile
+
+  @personas %{
+    greedy: %{label: "大牌型", name: "豪哥"},
+    rational: %{label: "科学型", name: "教授"},
+    casual: %{label: "随性型", name: "乐乐"}
+  }
+
+  def personas, do: @personas
+
+  def persona_label(nil), do: nil
+
+  def persona_label(persona) do
+    case Map.fetch(@personas, persona) do
+      {:ok, info} -> "#{info.name}·#{info.label}"
+      :error -> nil
+    end
+  end
 
   def new(attrs \\ %{}) do
     %__MODULE__{
@@ -21,7 +49,8 @@ defmodule Mahjong.Player do
       discards: [],
       in_turn?: false,
       game_id: nil,
-      won?: false
+      won?: false,
+      persona: attrs[:persona]
     }
   end
 

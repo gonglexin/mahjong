@@ -58,14 +58,11 @@ defmodule MahjongWeb.GameLive do
     {:noreply, socket}
   end
 
-  def handle_event("start_by_ai", _, socket) do
-    if is_nil(socket.assigns.current_player.game_id) do
-      player = Game.join(socket.assigns.game, socket.assigns.current_player)
-      Game.start_by_ai(socket.assigns.game)
-      {:noreply, assign(socket, :current_player, player)}
-    else
-      Game.start_by_ai(socket.assigns.game)
-      {:noreply, socket}
+  def handle_event("add_ai", %{"persona" => persona}, socket) do
+    case Game.add_ai(socket.assigns.game, String.to_existing_atom(persona)) do
+      {:ok, _ai} -> {:noreply, socket}
+      {:error, :table_full} -> {:noreply, put_flash(socket, :error, "牌桌已满")}
+      _ -> {:noreply, socket}
     end
   end
 

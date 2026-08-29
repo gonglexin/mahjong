@@ -20,6 +20,7 @@ defmodule Mahjong.Game do
   @ai_token_prefix "ai-"
   @claim_timeout_ms 10_000
   @turn_order [:east, :south, :west, :north]
+  @ai_claim_delay_ms 700
 
   # -- Public API ------------------------------------------------------------
 
@@ -44,7 +45,7 @@ defmodule Mahjong.Game do
   def join(game, player), do: GenServer.call(game, {:join, player})
   def all_games, do: :pg.get_members(:global, :game_servers)
   def start(game), do: GenServer.call(game, :start)
-  def start_by_ai(game), do: GenServer.call(game, :start_by_ai)
+  def add_ai(game, persona), do: GenServer.call(game, {:add_ai, persona})
   def reset(game), do: GenServer.call(game, :reset)
   def players(game), do: GenServer.call(game, :players)
   def tiles(game), do: GenServer.call(game, :tiles)
@@ -67,7 +68,8 @@ defmodule Mahjong.Game do
        pending: nil,
        discards_made: 0,
        kong_draw?: false,
-       result: nil
+       result: nil,
+       ai_timer: nil
      }}
   end
 
@@ -81,16 +83,29 @@ defmodule Mahjong.Game do
 
   def handle_call(:start, _, state), do: {:reply, state, state}
 
-  def handle_call(:start_by_ai, _, %{id: id, players: players} = state) do
-    ai_players =
-      players
-      |> available_positions()
-      |> Enum.map(fn position ->
-        Player.new(token: "#{@ai_token_prefix}#{position}", position: position, game_id: id)
-      end)
+  # 添加一名指定性格的 AI 玩家到空位（不自动开局）
+  def handle_call({:add_ai, persona}, _, %{id: id, players: players} = state) do
+    case available_positions(players) do
+      [] ->
+        {:reply, {:error, :table_full}, state}
 
-    dealt = deal_and_start(%{state | id: id, players: players ++ ai_players})
-    {:reply, dealt, dealt}
+      [position | _] ->
+        ai =
+          Player.new(
+            token: "#{@ai_token_prefix}#{position}-#{:erlang.unique_integer([:positive])}",
+            position: position,
+            game_id: id,
+            persona: persona
+          )
+
+        state = %{state | players: [ai | players]}
+
+        {:registered_name, game_name} = Process.info(self(), :registered_name)
+        Mahjong.broadcast("games", {:player_join, game_name})
+        broadcast(state)
+
+        {:reply, {:ok, ai}, state}
+    end
   end
 
   def handle_call(:reset, _, %{id: id, players: players} = state) do
@@ -112,7 +127,8 @@ defmodule Mahjong.Game do
         pending: nil,
         discards_made: 0,
         kong_draw?: false,
-        result: nil
+        result: nil,
+        ai_timer: nil
     }
 
     broadcast(state)
@@ -357,6 +373,63 @@ defmodule Mahjong.Game do
 
   def handle_info(:claim_timeout, state), do: {:noreply, state}
 
+  # AI 回合：思考延迟后决策（胡/暗杠/加杠/出牌），复用既有校验路径
+  def handle_info({:ai_act, player_id}, state) do
+    player = find_player(state, player_id)
+
+    if player && ai?(player) && state.phase == :playing && is_nil(state.pending) &&
+         state.turn == player_id do
+      ctx = %{wall_left: length(state.tiles)}
+      action = Mahjong.AI.decide_turn(player, ctx)
+
+      {:reply, _reply, new_state} = handle_call({player_id, action}, nil, state)
+      broadcast(new_state)
+      {:noreply, new_state}
+    else
+      {:noreply, state}
+    end
+  end
+
+  # AI 报牌：按座位顺序依次决策；过牌记录后继续看下一位，出动作则执行并停止
+  def handle_info({:ai_claims, gen}, %{pending: %{gen: gen}} = state) do
+    case ai_claims_step(state) do
+      :done ->
+        {:noreply, state}
+
+      {id, :pass} ->
+        {:reply, _reply, new_state} = handle_call({id, :pass}, nil, state)
+        broadcast(new_state)
+        {:noreply, new_state}
+
+      {id, action} ->
+        claim = normalize_claim(action)
+        {:reply, _reply, new_state} = handle_call({id, claim}, nil, state)
+        broadcast(new_state)
+        {:noreply, new_state}
+    end
+  end
+
+  def handle_info({:ai_claims, _gen}, state), do: {:noreply, state}
+
+  # 引擎决策的 :pong 归一化为 handle_call 的 {:pong, nil}
+  defp normalize_claim(:pong), do: {:pong, nil}
+  defp normalize_claim(action), do: action
+
+  defp ai_claims_step(state) do
+    tile = elem(state.last_discard, 1)
+    ctx = %{wall_left: length(state.tiles)}
+
+    Enum.find_value(state.pending.eligible, fn player_id ->
+      player = find_player(state, player_id)
+
+      if player && ai?(player) do
+        actions = Map.get(state.pending.actions, player_id, [])
+        decision = Mahjong.AI.decide_claim(player, tile, actions, ctx)
+        {player_id, decision}
+      end
+    end)
+  end
+
   # -- 内部：开局与发牌 ---------------------------------------------------------
 
   defp deal_and_start(%{players: players} = state) do
@@ -390,6 +463,7 @@ defmodule Mahjong.Game do
         result: nil
     }
 
+    state = maybe_schedule_ai_act(state)
     broadcast(state)
     state
   end
@@ -403,31 +477,31 @@ defmodule Mahjong.Game do
 
   # -- 内部：报牌窗口 -----------------------------------------------------------
 
-  # 开指定阶段的报牌窗口。take/chow 为后续阶段的动作表，随窗口携带
+  # 开指定阶段的报牌窗口。take/chow 为后续阶段的动作表，随窗口携带。
+  # AI 报牌者在延迟后统一决策（可碰/可杠/可吃/可胡，也可放弃）。
   defp start_claim_window(state, phase, claims, take, chow) do
     eligible = Map.keys(claims)
+    gen = make_ref()
 
-    # AI 玩家自动过
-    {ai_ids, human_ids} =
-      Enum.split_with(eligible, fn player_id ->
-        state |> find_player(player_id) |> ai?()
-      end)
-
-    responses = Map.new(ai_ids, fn player_id -> {player_id, :pass} end)
+    human_ids =
+      Enum.filter(eligible, fn player_id -> not (state |> find_player(player_id) |> ai?()) end)
 
     timer =
-      if human_ids == [] do
-        nil
-      else
-        Process.send_after(self(), :claim_timeout, @claim_timeout_ms)
-      end
+      if human_ids == [],
+        do: nil,
+        else: Process.send_after(self(), :claim_timeout, @claim_timeout_ms)
+
+    if Enum.any?(eligible, fn player_id -> state |> find_player(player_id) |> ai?() end) do
+      Process.send_after(self(), {:ai_claims, gen}, @ai_claim_delay_ms)
+    end
 
     %{
       state
       | pending: %{
+          gen: gen,
           phase: phase,
           eligible: eligible,
-          responses: responses,
+          responses: %{},
           timer: timer,
           actions: claims,
           take: take || %{},
@@ -532,6 +606,7 @@ defmodule Mahjong.Game do
     }
     |> cancel_timer()
     |> set_turn(player.id)
+    |> maybe_schedule_ai_act()
   end
 
   defp handle_claim_kong_pong(state, player_id, action) do
@@ -594,6 +669,7 @@ defmodule Mahjong.Game do
             kong_draw?: false
         }
         |> set_turn(player.id)
+        |> maybe_schedule_ai_act()
     end
   end
 
@@ -613,8 +689,36 @@ defmodule Mahjong.Game do
             kong_draw?: true,
             last_discard: nil
         }
+        |> maybe_schedule_ai_act()
     end
   end
+
+  # 若当前行动玩家是 AI，安排其思考后行动
+  defp maybe_schedule_ai_act(state) do
+    if state.phase == :playing and is_nil(state.pending) do
+      player = state.turn && find_player(state, state.turn)
+
+      if player && ai?(player) do
+        state = cancel_ai_timer(state)
+        %{state | ai_timer: Process.send_after(self(), {:ai_act, player.id}, ai_think_ms())}
+      else
+        state
+      end
+    else
+      state
+    end
+  end
+
+  defp cancel_ai_timer(%{ai_timer: timer} = state) when not is_nil(timer) do
+    Process.cancel_timer(timer)
+    %{state | ai_timer: nil}
+  end
+
+  defp cancel_ai_timer(state), do: %{state | ai_timer: nil}
+
+  defp ai_think_ms, do: ai_config() |> Keyword.get(:think_ms, 1_200)
+
+  defp ai_config, do: Application.get_env(:mahjong, :ai, [])
 
   # 东→南→西→北 逆时针轮转
   defp next_player_id(players, current_id) do

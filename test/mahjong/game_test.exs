@@ -46,7 +46,8 @@ defmodule Mahjong.GameTest do
         pending: nil,
         discards_made: 1,
         kong_draw?: false,
-        result: nil
+        result: nil,
+        ai_timer: nil
       },
       Map.new(overrides)
     )
@@ -168,13 +169,18 @@ defmodule Mahjong.GameTest do
     assert length(state.tiles) == 30
   end
 
-  test "AI 全部自动过报牌后不卡死，轮到下一家摸牌" do
+  test "AI 报牌决策：可碰则碰，碰后轮到其出牌" do
     id = Ecto.UUID.generate()
     {:ok, game} = Game.new(id)
 
     players =
-      for pos <- [:east, :south, :west, :north] do
-        Player.new(token: "ai-#{pos}", position: pos)
+      for {pos, persona} <- [
+            {:east, nil},
+            {:south, :rational},
+            {:west, :casual},
+            {:north, :greedy}
+          ] do
+        Player.new(token: "ai-#{pos}-#{@suffix}", position: pos, persona: persona)
       end
 
     for p <- players, do: Game.join(game, p)
@@ -186,19 +192,33 @@ defmodule Mahjong.GameTest do
     players =
       hand_for(players, :east, [claimed | filler(13)])
       |> hand_for(:south, pair(:characters, 5) ++ filler(11))
+      |> hand_for(
+        :west,
+        seq(:characters, 1) ++ seq(:dots, 2) ++ seq(:bamboos, 3) ++ [tile(:dots, 8)]
+      )
+      |> hand_for(
+        :north,
+        seq(:dots, 1) ++ seq(:characters, 2) ++ seq(:bamboos, 4) ++ [tile(:dots, 9)]
+      )
 
     state = base_state(%{game: game, players: players}, turn: dealer.id)
     replace_state(game, state)
 
-    # 东家出牌，唯一可报牌的南家是 AI，自动过碰后不卡死
+    # 东家打出 5 万，报牌窗口开启
     state = Game.action(game, dealer.id, {:discard, claimed})
+    assert state.pending.phase == :take
 
-    # 南家 AI 过碰后仍由南家摸牌（过报牌不跳过摸牌）
-    assert is_nil(state.pending)
-    assert is_nil(state.last_discard)
+    # 触发 AI 报牌决策（南家 AI 性格 :rational，可碰且改善向听 → 碰）
+    send(game, {:ai_claims, state.pending.gen})
+    state = Game.state(game)
+    IO.inspect(state.pending && state.pending.phase, label: "DBG phase after ai_claims")
+    IO.inspect(state.pending && state.pending.actions, label: "DBG actions")
     south = Enum.find(state.players, &(&1.position == :south))
+
+    assert [%{type: :pong}] = south.open_hand
     assert state.turn == south.id
-    assert length(south.hand) == 14
+    assert length(south.hand) == 11
+    assert is_nil(state.pending)
   end
 
   test "吃牌仅限下家：下家动作含吃，上家不含" do
