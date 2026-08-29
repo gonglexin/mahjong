@@ -169,7 +169,8 @@ defmodule Mahjong.Game do
   def handle_call({player_id, {:discard, tile}}, _, %{phase: :playing, pending: nil} = state) do
     player = find_player(state, player_id)
 
-    if player && state.turn == player_id && Tile.count(player.hand, tile) >= 1 do
+    # 按唯一 id 校验：手牌有两张相同牌时，防止同一张牌的事件被重复处理
+    if player && state.turn == player_id && Enum.any?(player.hand, &(&1.id == tile.id)) do
       player = Player.discard(player, tile)
 
       state = %{

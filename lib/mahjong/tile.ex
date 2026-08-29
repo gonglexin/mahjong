@@ -16,13 +16,11 @@ defmodule Mahjong.Tile do
 
   def key(%__MODULE__{} = tile), do: {tile.suit, tile.value}
 
-  # Remove the first tile matching suit+value (ids differ between copies)
+  # 只移除第一张匹配花色+点数的牌（手牌可能有两张相同牌，只应消失一张）
   def remove_one(hand, %__MODULE__{} = tile) do
-    {matched, rest} = Enum.split_with(hand, &same?(&1, tile))
-
-    case matched do
-      [] -> hand
-      [_first | _] -> rest
+    case Enum.find_index(hand, &same?(&1, tile)) do
+      nil -> hand
+      index -> List.delete_at(hand, index)
     end
   end
 

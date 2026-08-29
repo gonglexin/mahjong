@@ -130,6 +130,50 @@ defmodule Mahjong.GameTest do
     assert length(state.tiles) == 29
   end
 
+  test "两张相同牌出其一后，同 id 的重复出牌请求被拒绝" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    dup_a = tile(:characters, 5)
+    dup_b = tile(:characters, 5)
+
+    # 东家两张 5 万；他家手牌与 5 万无关联（无人报牌，窗口立即关闭）
+    players =
+      hand_for(players, :east, [dup_a, dup_b | filler(11)])
+      |> hand_for(
+        :south,
+        seq(:dots, 1) ++
+          seq(:bamboos, 4) ++ [tile(:characters, 1), tile(:characters, 2)] ++ filler(6)
+      )
+      |> hand_for(
+        :west,
+        seq(:characters, 1) ++ seq(:dots, 2) ++ seq(:bamboos, 3) ++ [tile(:dots, 8)] ++ filler(6)
+      )
+      |> hand_for(
+        :north,
+        seq(:dots, 1) ++ seq(:characters, 2) ++ seq(:bamboos, 4) ++ [tile(:dots, 9)] ++ filler(6)
+      )
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    # 第一次：正常出 5 万（dup_a），手牌 13 → 12
+    state = Game.action(game, dealer.id, {:discard, dup_a})
+
+    east = Enum.find(state.players, &(&1.position == :east))
+    assert length(east.hand) == 12
+    assert Enum.count(east.hand, &(&1.suit == :characters and &1.value == 5)) == 1
+
+    # 第二次：同一张牌（dup_a 的 id）重复提交 → 服务端按 id 校验拒绝
+    assert {:error, :not_your_turn} = Game.action(game, dealer.id, {:discard, dup_a})
+
+    # 南家摸牌后东家手牌仍为 12，5 万只剩一张
+    east = Enum.find(Game.state(game).players, &(&1.position == :east))
+    assert length(east.hand) == 12
+    assert Enum.count(east.hand, &(&1.suit == :characters and &1.value == 5)) == 1
+  end
+
   test "碰：拿走弃牌组成刻子且不摸牌" do
     %{game: game, players: players} = setup_game()
     state = Game.start(game)
