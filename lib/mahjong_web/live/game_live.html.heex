@@ -89,7 +89,7 @@
             <.tile
               :for={tile <- Player.sort_hand(player.hand)}
               tile={tile}
-              show={@current_player.id == player.id}
+              show={@current_player.id == player.id or @phase == :over}
               class={[
                 "tile-hand",
                 @current_player.id == player.id && @phase == :playing &&
