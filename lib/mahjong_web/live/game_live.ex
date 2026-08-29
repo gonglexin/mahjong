@@ -22,10 +22,6 @@ defmodule MahjongWeb.GameLive do
             |> Enum.find(&(&1.token == token)) ||
               Player.new(token: token)
 
-          IO.inspect({token, Map.get(current_player, :token), Map.get(current_player, :position)},
-            label: "DBG mount player"
-          )
-
           socket
           |> assign(:game, game)
           |> assign(:current_player, current_player)
@@ -91,7 +87,13 @@ defmodule MahjongWeb.GameLive do
 
   def handle_event("action", %{"value" => value}, socket) do
     %{current_player: player, game: game} = socket.assigns
-    Game.action(game, player.id, parse_action(value))
+
+    # 热重载/陈旧 DOM 可能送来未知动作，安全忽略
+    case parse_action(value) do
+      {:ok, action} -> Game.action(game, player.id, action)
+      :error -> :ok
+    end
+
     {:noreply, socket}
   end
 
@@ -126,23 +128,32 @@ defmodule MahjongWeb.GameLive do
         }
 
       {:kong_added, t} ->
-        %{label: "加杠 #{t.value}", value: "kong_added:#{t.suit}:#{t.value}", class: "btn-warning"}
+        %{
+          label: "加杠 #{t.value}",
+          value: "kong_added:#{t.suit}:#{t.value}",
+          class: "btn-warning"
+        }
     end)
   end
 
-  defp parse_action("pass"), do: :pass
-  defp parse_action("win"), do: :win
-  defp parse_action("pong"), do: {:pong, nil}
-  defp parse_action("kong_open"), do: {:kong_open}
-  defp parse_action("chow:" <> base), do: {:chow, String.to_integer(base)}
+  defp parse_action("pass"), do: {:ok, :pass}
+  defp parse_action("win"), do: {:ok, :win}
+  defp parse_action("pong"), do: {:ok, {:pong, nil}}
+  defp parse_action("kong_open"), do: {:ok, {:kong_open}}
+
+  defp parse_action("chow:" <> base) do
+    {:ok, {:chow, String.to_integer(base)}}
+  end
 
   defp parse_action("kong_concealed:" <> rest) do
-    {:kong_concealed, parse_tile(rest)}
+    {:ok, {:kong_concealed, parse_tile(rest)}}
   end
 
   defp parse_action("kong_added:" <> rest) do
-    {:kong_added, parse_tile(rest)}
+    {:ok, {:kong_added, parse_tile(rest)}}
   end
+
+  defp parse_action(_), do: :error
 
   defp parse_tile(value) do
     [suit, v] = String.split(value, ":")
