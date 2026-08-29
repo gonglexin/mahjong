@@ -65,6 +65,10 @@ config :phoenix, :stacktrace_depth, 20
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
 
+# Allow multiple dev instances on one machine: LiveDebugger defaults to a fixed
+# port 4007 which clashes with the primary dev server; port 0 lets the OS pick one.
+config :live_debugger, port: 0
+
 config :phoenix_live_view,
   # Include debug annotations and locations in rendered markup.
   # Changing this configuration will require mix clean and a full recompile.

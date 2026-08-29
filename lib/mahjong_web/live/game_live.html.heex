@@ -1,88 +1,157 @@
 <Layouts.app flash={@flash}>
-  <div class="mb-4">
-    <.button :if={is_nil(@current_player.game_id)} phx-click="join">Join</.button>
-    <.button phx-click="start">Start</.button>
-    <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
-      <.link patch={~p"/"}>Hall</.link>
-    </.button>
+  <div class="flex items-center justify-between mb-3">
+    <div class="flex gap-2">
+      <.button :if={is_nil(@current_player.game_id)} phx-click="join">Join</.button>
+      <.button phx-click="start">Start</.button>
+      <.button phx-click="start_by_ai">Start with AI</.button>
+      <.button :if={@phase == :over} phx-click="restart">再来一局</.button>
+    </div>
+    <.link patch={~p"/"} class="btn btn-ghost">Hall</.link>
   </div>
-  <div id="game-borad" class="relative h-[780px]">
+
+  <div
+    id="game-board"
+    class="board-felt relative h-[760px] rounded-2xl overflow-hidden shadow-inner"
+  >
+    <%!-- 中央：风位罗盘与余牌 --%>
     <div
       id="position_marker"
-      class="absolute inset-0 flex items-center justify-center pointer-events-none"
+      class="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none"
     >
-      <div class="relative w-24 h-24 border-2 border-black shadow-xl bg-gray-100 pointer-events-auto">
-        <div class="absolute inset-0 before:absolute before:inset-0 before:bg-gradient-to-br before:from-transparent before:to-black before:w-full before:h-full before:[mask-image:linear-gradient(to_bottom_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]">
-        </div>
-        <div class="absolute inset-0 after:absolute after:inset-0 after:bg-gradient-to-tr after:from-transparent after:to-black after:w-full after:h-full after:[mask-image:linear-gradient(to_top_right,transparent_49.5%,black_49.5%,black_50.5%,transparent_50.5%)]">
-        </div>
-        <div class="absolute top-[10%] left-1/2 -translate-x-1/2">
-          {get_direction_markers(@current_player.position)[:top]}
-        </div>
-        <div class="absolute top-1/2 right-[10%] -translate-y-1/2">
-          {get_direction_markers(@current_player.position)[:right]}
-        </div>
-        <div class="absolute bottom-[10%] left-1/2 -translate-x-1/2">
-          {get_direction_markers(@current_player.position)[:bottom]}
-        </div>
-        <div class="absolute top-1/2 left-[10%] -translate-y-1/2">
-          {get_direction_markers(@current_player.position)[:left]}
+      <div class="relative flex h-48 w-48 items-center justify-center rounded-full border border-emerald-200/20 bg-emerald-950/55 shadow-[inset_0_2px_16px_rgba(0,0,0,0.45)]">
+        <div class="absolute inset-2 rounded-full border border-emerald-200/10"></div>
+        <div class="absolute inset-7 rounded-full border border-emerald-200/10"></div>
+
+        <%!-- 罗盘：方位字落在正方位，当前出牌者的风位牌金色高亮 --%>
+        <div class="absolute inset-0 grid grid-cols-3 grid-rows-3 place-items-center">
+          <span></span>
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).top, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).top)}
+          </span>
+          <span></span>
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).left, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).left)}
+          </span>
+          <span class="relative flex h-16 w-16 flex-col items-center justify-center rounded-full bg-gradient-to-br from-emerald-800 to-emerald-950 ring-1 ring-amber-200/25">
+            <span class="text-2xl font-bold leading-none text-amber-200">{@tile_size}</span>
+            <span class="mt-1 text-[10px] tracking-widest text-emerald-100/70">余牌</span>
+          </span>
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).right, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).right)}
+          </span>
+          <span></span>
+          <span class={
+            wind_chip_class(compass_seats(@current_player.position).bottom, @turn_position)
+          }>
+            {position_label(compass_seats(@current_player.position).bottom)}
+          </span>
+          <span></span>
         </div>
       </div>
-    </div>
-
-    <div
-      id="left_tile_size"
-      class="absolute inset-0 top-1/3 text-center text-lg pointer-events-none"
-    >
-      Left tiles: {@tile_size}
     </div>
 
     <div id="players" phx-update="stream">
       <div
         :for={{id, player} <- @streams.players}
         id={id}
-        class={["space-y-4", get_player_class(player, @current_player)]}
-        data-position={get_player_position(player, @current_player)}
+        class={["seat", seat_class(player, @current_player)]}
+        data-position={seat_position(player, @current_player)}
       >
-        <div class="flex flex-wrap px-20 max-w-[calc(14*2rem)]">
-          <.tile :for={tile <- player.discards} tile={tile} show={true} class="w-8 h-full" />
+        <%!-- 副露 --%>
+        <div class="melds">
+          <div :for={meld <- player.open_hand} class="meld">
+            <.tile :for={tile <- meld.tiles} tile={tile} show={true} class="tile-discard" />
+          </div>
         </div>
 
-        <div class="flex items-end">
-          <div class={["flex", player.in_turn? && "animate-[glowing_2s_infinite]"]}>
+        <%!-- 弃牌 --%>
+        <div class="discards">
+          <.tile :for={tile <- player.discards} tile={tile} show={true} class="tile-discard" />
+        </div>
+
+        <%!-- 手牌 --%>
+        <div class="hand-row">
+          <div class="hand">
             <.tile
-              :for={tile <- player.hand}
+              :for={tile <- Player.sort_hand(player.hand)}
               tile={tile}
               show={@current_player.id == player.id}
-              class={@current_player.id == player.id && "hover:scale-125"}
+              class={[
+                "tile-hand",
+                @current_player.id == player.id && @phase == :playing &&
+                  "cursor-pointer hover:-translate-y-2 transition-transform"
+              ]}
               phx-click={
-                if @current_player.id == player.id && player.in_turn? do
-                  "discard"
-                end
+                if @current_player.id == player.id && player.in_turn? && @phase == :playing,
+                  do: "discard"
               }
               phx-value-id={tile.id}
             />
           </div>
-          <div class="flex ml-auto space-x-2">
-            <div :for={tiles <- player.open_hand} class="flex">
-              <.tile :for={tile <- tiles} tile={tile} show={true} class="w-8 h-full" />
-            </div>
-          </div>
         </div>
 
-        <%!-- <div class="flex justify-center"> --%>
-        <%!-- <.avatar name={player.token} /> --%>
-        <%!-- <span>{player.id} - {player.position} - {length(player.hand)}</span> --%>
-        <%!-- <.icon :if={@current_player.id == player.id} name="hero-star-solid" /> --%>
-        <%!-- <.icon :if={player.in_turn?} name="hero-star-solid" class="text-red-600" /> --%>
-        <%!-- </div> --%>
+        <%!-- 玩家铭牌 --%>
+        <div class="seat-id">
+          <span class="font-bold">{position_label(player.position)}</span>
+          <span>{String.slice(player.token || player.id, 0, 8)}</span>
+        </div>
       </div>
     </div>
-  </div>
-  <div id="tiles" phx-update="stream" class="mt-10 flex flex-wrap max-w-[calc(9*3rem)]">
-    <div :for={{id, tile} <- @streams.tiles} id={id}>
-      <.tile tile={tile} show={true} class="p-1" />
+
+    <%!-- 操作按钮 --%>
+    <div
+      :if={@action_buttons != [] and @phase == :playing}
+      class="absolute bottom-[7.5rem] left-1/2 -translate-x-1/2 flex gap-2 z-20"
+    >
+      <button
+        :for={button <- @action_buttons}
+        class={["btn btn-sm shadow-lg", button.class]}
+        phx-click="action"
+        phx-value-action={button.value}
+      >
+        {button.label}
+      </button>
+    </div>
+
+    <%!-- 等待提示：有人在报牌窗口中决策 --%>
+    <div
+      :if={@waiting_others and @action_buttons == [] and @phase == :playing}
+      class="absolute bottom-[7.5rem] left-1/2 -translate-x-1/2 z-20 rounded-full bg-black/50 px-4 py-1 text-sm text-amber-100"
+    >
+      等待其他玩家行动…
+    </div>
+
+    <%!-- 结算横幅 --%>
+    <div
+      :if={@phase == :over}
+      class="absolute inset-0 z-20 flex items-center justify-center bg-black/50"
+    >
+      <div class="rounded-2xl bg-emerald-950/90 border border-amber-200/30 px-10 py-8 text-center shadow-2xl">
+        <%= if @result && @result.type == :wall_empty do %>
+          <div class="text-2xl font-bold text-amber-100 mb-2">荒庄</div>
+          <div class="text-sm text-emerald-200/80">牌墙已空，流局</div>
+        <% else %>
+          <div class="text-2xl font-bold text-amber-100 mb-2">
+            {@result && ((@result.type == :self_win && "自摸") || "胡牌")}！
+          </div>
+          <div class="text-sm text-emerald-100/90 mb-1">
+            胡家：{String.slice((@result && Map.get(@result, :winner_id)) || "", 0, 8)}
+            <span :if={@result && @result[:loser_id]}>
+              · 放炮：{String.slice(@result.loser_id, 0, 8)}
+            </span>
+          </div>
+          <div class="text-lg text-amber-200 font-semibold mb-1">
+            {@result && fan_names(@result.fans)}
+          </div>
+          <div class="text-sm text-emerald-200/80">{@result && @result.score} 番</div>
+        <% end %>
+      </div>
     </div>
   </div>
 </Layouts.app>
