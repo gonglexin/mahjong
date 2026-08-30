@@ -58,14 +58,11 @@ defmodule MahjongWeb.GameLive do
     {:noreply, socket}
   end
 
-  def handle_event("start_by_ai", _, socket) do
-    if is_nil(socket.assigns.current_player.game_id) do
-      player = Game.join(socket.assigns.game, socket.assigns.current_player)
-      Game.start_by_ai(socket.assigns.game)
-      {:noreply, assign(socket, :current_player, player)}
-    else
-      Game.start_by_ai(socket.assigns.game)
-      {:noreply, socket}
+  def handle_event("add_ai", %{"persona" => persona}, socket) do
+    case Game.add_ai(socket.assigns.game, String.to_existing_atom(persona)) do
+      {:ok, _ai} -> {:noreply, socket}
+      {:error, :table_full} -> {:noreply, put_flash(socket, :error, "牌桌已满")}
+      _ -> {:noreply, socket}
     end
   end
 
@@ -199,6 +196,23 @@ defmodule MahjongWeb.GameLive do
 
       true ->
         []
+    end
+  end
+
+  # 手牌展示：刚摸的牌不参与排序，置于末端并留出间距
+  defp hand_tiles(player) do
+    case player.drawn do
+      nil ->
+        player.hand |> Player.sort_hand() |> Enum.map(&{&1, false})
+
+      drawn ->
+        sorted =
+          player.hand
+          |> Enum.reject(&(&1.id == drawn.id))
+          |> Player.sort_hand()
+          |> Enum.map(&{&1, false})
+
+        sorted ++ [{drawn, true}]
     end
   end
 

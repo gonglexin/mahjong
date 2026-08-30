@@ -46,7 +46,8 @@ defmodule Mahjong.GameTest do
         pending: nil,
         discards_made: 1,
         kong_draw?: false,
-        result: nil
+        result: nil,
+        ai_timer: nil
       },
       Map.new(overrides)
     )
@@ -127,6 +128,62 @@ defmodule Mahjong.GameTest do
     assert state.turn == south.id
     assert length(south.hand) == 14
     assert length(state.tiles) == 29
+
+    # 摸进的牌标记为 drawn
+    assert south.drawn != nil
+
+    # 南家出一张非摸进的牌 → drawn 清除，手牌回到排序状态（13 张）
+    discard_tile = Enum.find(south.hand, &(&1.id != south.drawn.id))
+    state = Game.action(game, south.id, {:discard, discard_tile})
+    south = Enum.find(state.players, &(&1.position == :south))
+
+    assert is_nil(south.drawn)
+    assert length(south.hand) == 13
+    assert south.hand == Player.sort_hand(south.hand)
+  end
+
+  test "两张相同牌出其一后，同 id 的重复出牌请求被拒绝" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    dup_a = tile(:characters, 5)
+    dup_b = tile(:characters, 5)
+
+    # 东家两张 5 万；他家手牌与 5 万无关联（无人报牌，窗口立即关闭）
+    players =
+      hand_for(players, :east, [dup_a, dup_b | filler(11)])
+      |> hand_for(
+        :south,
+        seq(:dots, 1) ++
+          seq(:bamboos, 4) ++ [tile(:characters, 1), tile(:characters, 2)] ++ filler(6)
+      )
+      |> hand_for(
+        :west,
+        seq(:characters, 1) ++ seq(:dots, 2) ++ seq(:bamboos, 3) ++ [tile(:dots, 8)] ++ filler(6)
+      )
+      |> hand_for(
+        :north,
+        seq(:dots, 1) ++ seq(:characters, 2) ++ seq(:bamboos, 4) ++ [tile(:dots, 9)] ++ filler(6)
+      )
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    # 第一次：正常出 5 万（dup_a），手牌 13 → 12
+    state = Game.action(game, dealer.id, {:discard, dup_a})
+
+    east = Enum.find(state.players, &(&1.position == :east))
+    assert length(east.hand) == 12
+    assert Enum.count(east.hand, &(&1.suit == :characters and &1.value == 5)) == 1
+
+    # 第二次：同一张牌（dup_a 的 id）重复提交 → 服务端按 id 校验拒绝
+    assert {:error, :not_your_turn} = Game.action(game, dealer.id, {:discard, dup_a})
+
+    # 南家摸牌后东家手牌仍为 12，5 万只剩一张
+    east = Enum.find(Game.state(game).players, &(&1.position == :east))
+    assert length(east.hand) == 12
+    assert Enum.count(east.hand, &(&1.suit == :characters and &1.value == 5)) == 1
   end
 
   test "碰：拿走弃牌组成刻子且不摸牌" do
@@ -168,13 +225,18 @@ defmodule Mahjong.GameTest do
     assert length(state.tiles) == 30
   end
 
-  test "AI 全部自动过报牌后不卡死，轮到下一家摸牌" do
+  test "AI 报牌决策：可碰则碰，碰后轮到其出牌" do
     id = Ecto.UUID.generate()
     {:ok, game} = Game.new(id)
 
     players =
-      for pos <- [:east, :south, :west, :north] do
-        Player.new(token: "ai-#{pos}", position: pos)
+      for {pos, persona} <- [
+            {:east, nil},
+            {:south, :rational},
+            {:west, :casual},
+            {:north, :greedy}
+          ] do
+        Player.new(token: "ai-#{pos}-#{@suffix}", position: pos, persona: persona)
       end
 
     for p <- players, do: Game.join(game, p)
@@ -186,19 +248,33 @@ defmodule Mahjong.GameTest do
     players =
       hand_for(players, :east, [claimed | filler(13)])
       |> hand_for(:south, pair(:characters, 5) ++ filler(11))
+      |> hand_for(
+        :west,
+        seq(:characters, 1) ++ seq(:dots, 2) ++ seq(:bamboos, 3) ++ [tile(:dots, 8)]
+      )
+      |> hand_for(
+        :north,
+        seq(:dots, 1) ++ seq(:characters, 2) ++ seq(:bamboos, 4) ++ [tile(:dots, 9)]
+      )
 
     state = base_state(%{game: game, players: players}, turn: dealer.id)
     replace_state(game, state)
 
-    # 东家出牌，唯一可报牌的南家是 AI，自动过碰后不卡死
+    # 东家打出 5 万，报牌窗口开启
     state = Game.action(game, dealer.id, {:discard, claimed})
+    assert state.pending.phase == :take
 
-    # 南家 AI 过碰后仍由南家摸牌（过报牌不跳过摸牌）
-    assert is_nil(state.pending)
-    assert is_nil(state.last_discard)
+    # 触发 AI 报牌决策（南家 AI 性格 :rational，可碰且改善向听 → 碰）
+    send(game, {:ai_claims, state.pending.gen})
+    state = Game.state(game)
+    IO.inspect(state.pending && state.pending.phase, label: "DBG phase after ai_claims")
+    IO.inspect(state.pending && state.pending.actions, label: "DBG actions")
     south = Enum.find(state.players, &(&1.position == :south))
+
+    assert [%{type: :pong}] = south.open_hand
     assert state.turn == south.id
-    assert length(south.hand) == 14
+    assert length(south.hand) == 11
+    assert is_nil(state.pending)
   end
 
   test "吃牌仅限下家：下家动作含吃，上家不含" do

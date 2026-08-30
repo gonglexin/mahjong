@@ -3,7 +3,15 @@
     <div class="flex gap-2">
       <.button :if={is_nil(@current_player.game_id)} phx-click="join">Join</.button>
       <.button phx-click="start">Start</.button>
-      <.button phx-click="start_by_ai">Start with AI</.button>
+      <.button
+        :for={{persona, info} <- Player.personas()}
+        :if={@phase == :waiting}
+        phx-click="add_ai"
+        phx-value-persona={persona}
+        class="btn-outline"
+      >
+        +AI {info.name}（{info.label}）
+      </.button>
       <.button :if={@phase == :over} phx-click="restart">再来一局</.button>
     </div>
     <.link patch={~p"/"} class="btn btn-ghost">Hall</.link>
@@ -63,27 +71,27 @@
         class={["seat", seat_class(player, @current_player)]}
         data-position={seat_position(player, @current_player)}
       >
-        <%!-- 副露 --%>
-        <div class="melds">
-          <div :for={meld <- player.open_hand} class="meld">
-            <.tile :for={tile <- meld.tiles} tile={tile} show={true} class="tile-discard" />
-          </div>
-        </div>
-
-        <%!-- 弃牌 --%>
+        <%!-- 弃牌（朝桌心） --%>
         <div class="discards">
           <.tile :for={tile <- player.discards} tile={tile} show={true} class="tile-discard" />
         </div>
 
-        <%!-- 手牌 --%>
+        <%!-- 手牌行：副露紧贴手牌左侧，单组副露不再居中悬空 --%>
         <div class="hand-row">
+          <div class="melds">
+            <div :for={meld <- player.open_hand} class="meld">
+              <.tile :for={tile <- meld.tiles} tile={tile} show={true} class="tile-discard" />
+            </div>
+          </div>
+
           <div class="hand">
             <.tile
-              :for={tile <- Player.sort_hand(player.hand)}
+              :for={{tile, is_drawn} <- hand_tiles(player)}
               tile={tile}
-              show={@current_player.id == player.id}
+              show={@current_player.id == player.id or @phase == :over}
               class={[
                 "tile-hand",
+                is_drawn && "ml-4",
                 @current_player.id == player.id && @phase == :playing &&
                   "cursor-pointer hover:-translate-y-2 transition-transform"
               ]}
@@ -99,7 +107,10 @@
         <%!-- 玩家铭牌 --%>
         <div class="seat-id">
           <span class="font-bold">{position_label(player.position)}</span>
-          <span>{String.slice(player.token || player.id, 0, 8)}</span>
+          <span>
+            {Player.persona_label(player.persona) ||
+              String.slice(player.token || player.id, 0, 8)}
+          </span>
         </div>
       </div>
     </div>

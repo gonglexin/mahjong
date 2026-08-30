@@ -69,6 +69,16 @@ config :phoenix, :plug_init_mode, :runtime
 # port 4007 which clashes with the primary dev server; port 0 lets the OS pick one.
 config :live_debugger, port: 0
 
+# AI player LLM 配置。推荐 DeepSeek-V3（中文强/便宜/JSON 稳定）；
+# 备选：智谱 GLM-4-Flash（免费）、OpenAI gpt-4o-mini。
+# 未配置 key 时 AI 退化为纯规则引擎（向听数+牌型潜力），仍具备三种性格。
+config :mahjong, :ai,
+  llm_enabled: System.get_env("MAHJONG_AI_LLM", "false") == "true",
+  llm_model: System.get_env("MAHJONG_AI_MODEL", "deepseek-chat"),
+  llm_base_url: System.get_env("MAHJONG_AI_BASE_URL", "https://api.deepseek.com"),
+  llm_api_key: System.get_env("DEEPSEEK_API_KEY"),
+  think_ms: 1_200
+
 config :phoenix_live_view,
   # Include debug annotations and locations in rendered markup.
   # Changing this configuration will require mix clean and a full recompile.
