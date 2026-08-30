@@ -20,15 +20,38 @@ defmodule Mahjong.Rules do
   @fan_names %{
     ping_hu: "平胡",
     pung_pung: "碰碰胡",
+    jiang_jiang_hu: "将将胡",
     seven_pairs: "七对",
     pure_suit: "清一色",
+    quan_qiu_ren: "全求人",
     self_draw: "自摸",
     heavenly: "天胡",
     earthly: "地胡",
     kong_blossom: "杠上开花"
   }
 
-  @type fan :: :ping_hu | :pung_pung | :seven_pairs | :pure_suit | flag()
+  @type fan ::
+          :ping_hu
+          | :pung_pung
+          | :jiang_jiang_hu
+          | :seven_pairs
+          | :pure_suit
+          | :quan_qiu_ren
+          | flag()
+
+  # 番值：大牌型权重更高（全求人/将将胡为牌型番，非简单叠加）
+  @fan_values %{
+    ping_hu: 1,
+    pung_pung: 2,
+    jiang_jiang_hu: 4,
+    seven_pairs: 4,
+    pure_suit: 4,
+    quan_qiu_ren: 6,
+    self_draw: 1,
+    heavenly: 10,
+    earthly: 10,
+    kong_blossom: 1
+  }
 
   @spec fan_name(fan()) :: String.t()
   def fan_name(fan), do: Map.fetch!(@fan_names, fan)
@@ -53,16 +76,33 @@ defmodule Mahjong.Rules do
       fans =
         base_fans
         |> append_fan(:pure_suit, pure_suit?(all_tiles))
+        |> append_fan(:jiang_jiang_hu, jiang_jiang?(all_tiles))
+        |> append_fan(:quan_qiu_ren, quan_qiu_ren?(hand, melds))
         |> append_fan(:self_draw, :self_draw in flags)
         |> append_fan(:heavenly, :heavenly in flags)
         |> append_fan(:earthly, :earthly in flags)
         |> append_fan(:kong_blossom, :kong_blossom in flags)
         |> Enum.reverse()
 
-      {:win, fans, length(fans)}
+      score = fans |> Enum.map(&Map.fetch!(@fan_values, &1)) |> Enum.sum()
+
+      {:win, fans, score}
     else
       :no_win
     end
+  end
+
+  # 全求人：四组副露全为碰/杠，手牌仅剩待配对的一张（不限 2/5/8）
+  defp quan_qiu_ren?(hand, melds) do
+    length(melds) == 4 and
+      Enum.all?(melds, &(&1.type in [:pong, :kong_open, :kong_concealed, :kong_added])) and
+      length(hand) == 2 and
+      Tile.same?(hd(hand), hd(tl(hand)))
+  end
+
+  # 将将胡：手牌与副露的所有牌均为 2/5/8 将牌（可胡任意完成牌型的将）
+  defp jiang_jiang?(all_tiles) do
+    all_tiles != [] and Enum.all?(all_tiles, &(&1.value in [2, 5, 8]))
   end
 
   # 标准牌型：暗牌分解为 (4 - 副露数) 副刻/顺 + 一对将。

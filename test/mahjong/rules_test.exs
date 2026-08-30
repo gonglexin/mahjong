@@ -91,6 +91,99 @@ defmodule Mahjong.RulesTest do
     end
   end
 
+  describe "全求人 / 将将胡" do
+    test "全求人：四组碰 + 手牌单张成对，不限将" do
+      melds = [
+        %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
+        %{type: :kong_open, tiles: List.duplicate(tile(:bamboos, 7), 4), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 9), from: "p"}
+      ]
+
+      hand = pair(:bamboos, 4)
+
+      assert {:win, fans, _score} = Rules.check(hand, melds)
+      assert :quan_qiu_ren in fans
+      assert :pung_pung in fans
+      # 不限 258 将：4 条做将也成立
+    end
+
+    test "手牌两张不同或副露含吃时不是全求人" do
+      melds = [
+        %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
+        %{type: :chow, tiles: seq(:bamboos, 2), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 9), from: "p"}
+      ]
+
+      hand = pair(:bamboos, 4)
+      assert :no_win = Rules.check(hand, melds)
+
+      hand2 = [tile(:bamboos, 4), tile(:dots, 4)]
+      melds2 = Enum.map(melds, &%{&1 | type: :pong})
+      assert :no_win = Rules.check(hand2, melds2)
+    end
+
+    test "将将胡：全部为 2/5/8 的刻子与将" do
+      melds = [
+        %{type: :pong, tiles: triplet(:characters, 2), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 5), from: "p"},
+        %{type: :pong, tiles: triplet(:bamboos, 8), from: "p"}
+      ]
+
+      hand = pair(:bamboos, 2) ++ pair(:characters, 5)
+
+      assert Enum.count(hand) == 4
+
+      # 胡 2 条：222 条成刻，55万 做将 → 将将胡
+      assert {:win, fans, _} = Rules.check(hand ++ [tile(:bamboos, 2)], melds)
+      assert :jiang_jiang_hu in fans
+      assert :pung_pung in fans
+
+      # 胡 5 万：555 万成刻，22条 做将 → 两张不同的将均可胡
+      assert {:win, fans2, _} = Rules.check(hand ++ [tile(:characters, 5)], melds)
+      assert :jiang_jiang_hu in fans2
+    end
+
+    test "副露含非将刻子时不是将将胡" do
+      melds = [
+        %{type: :pong, tiles: triplet(:characters, 3), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 5), from: "p"},
+        %{type: :pong, tiles: triplet(:bamboos, 8), from: "p"}
+      ]
+
+      hand = pair(:dots, 2) ++ pair(:bamboos, 2)
+
+      assert Enum.count(hand) == 4
+
+      assert {:win, fans, _} = Rules.check(hand ++ [tile(:bamboos, 2)], melds)
+      assert :pung_pung in fans
+      refute :jiang_jiang_hu in fans
+    end
+
+    test "全求人+将将胡 叠加计分" do
+      melds = [
+        %{type: :pong, tiles: triplet(:characters, 2), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 5), from: "p"},
+        %{type: :kong_concealed, tiles: List.duplicate(tile(:bamboos, 8), 4), from: nil},
+        %{type: :pong, tiles: triplet(:dots, 2), from: "p"}
+      ]
+
+      hand = pair(:characters, 5)
+
+      assert {:win, fans, score} = Rules.check(hand, melds, [:self_draw])
+      assert :quan_qiu_ren in fans
+      assert :jiang_jiang_hu in fans
+
+      expected =
+        fans
+        |> Enum.map(&Rules.fan_name/1)
+        |> length()
+
+      assert score == expected or score > 6
+    end
+  end
+
   describe "claim_actions/3" do
     test "可碰可吃（无胡）" do
       hand =

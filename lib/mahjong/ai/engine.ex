@@ -163,7 +163,18 @@ defmodule Mahjong.AI.Engine do
   defp decline_win?(:greedy, player, state_ctx) do
     case Rules.check(player.hand, player.open_hand, [:self_draw]) do
       {:win, fans, score} ->
-        big_fan? = Enum.any?(fans, &(&1 in [:pung_pung, :seven_pairs, :pure_suit]))
+        big_fan? =
+          Enum.any?(
+            fans,
+            &(&1 in [
+                :pung_pung,
+                :jiang_jiang_hu,
+                :seven_pairs,
+                :pure_suit,
+                :quan_qiu_ren
+              ])
+          )
+
         low_value? = score <= 2 and not big_fan?
 
         low_value? and hand_potential(player.hand, player.open_hand) >= 2 and
