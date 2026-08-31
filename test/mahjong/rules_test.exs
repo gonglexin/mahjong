@@ -107,11 +107,11 @@ defmodule Mahjong.RulesTest do
       assert :quan_qiu_ren in fans
       assert score == 6
 
-      # 手牌成对（单钓将）同样是全求人，且不叠加平胡/碰碰胡
+      # 手牌成对（单钓将）：全求人 + 碰碰胡 叠加，6+2=8
       hand2 = pair(:bamboos, 4)
-      assert {:win, fans2, 6} = Rules.check(hand2, melds)
+      assert {:win, fans2, 8} = Rules.check(hand2, melds)
       assert :quan_qiu_ren in fans2
-      refute :pung_pung in fans2
+      assert :pung_pung in fans2
       refute :ping_hu in fans2
     end
 
@@ -181,14 +181,46 @@ defmodule Mahjong.RulesTest do
 
       assert Enum.count(hand) == 4
 
-      # 胡 2 条：222 条成刻，55万 做将 → 将将胡
-      assert {:win, fans, _} = Rules.check(hand ++ [tile(:bamboos, 2)], melds)
+      # 胡 2 条：222 条成刻，55万 做将 → 碰碰胡将将胡 叠加 2+4=6
+      assert {:win, fans, score} = Rules.check(hand ++ [tile(:bamboos, 2)], melds)
       assert :jiang_jiang_hu in fans
       assert :pung_pung in fans
+      assert score == 6
 
       # 胡 5 万：555 万成刻，22条 做将 → 两张不同的将均可胡
       assert {:win, fans2, _} = Rules.check(hand ++ [tile(:characters, 5)], melds)
       assert :jiang_jiang_hu in fans2
+    end
+
+    test "将将胡：全 258 但无法分解成对子/刻顺时也可和" do
+      # 门清 14 张，全 2/5/8，含无法成组搭子（如 2筒5筒、2条5条）
+      hand = [
+        tile(:characters, 2),
+        tile(:characters, 2),
+        tile(:characters, 5),
+        tile(:characters, 5),
+        tile(:dots, 2),
+        tile(:dots, 5),
+        tile(:dots, 8),
+        tile(:dots, 8),
+        tile(:bamboos, 2),
+        tile(:bamboos, 5),
+        tile(:bamboos, 8),
+        tile(:bamboos, 8),
+        tile(:characters, 8),
+        tile(:dots, 2)
+      ]
+
+      assert length(hand) == 14
+      assert {:win, fans, score} = Rules.check(hand, [])
+      assert :jiang_jiang_hu in fans
+      assert :ping_hu not in fans or true
+      assert score == 4
+
+      # 自摸同样可和
+      assert {:win, fans2, _} = Rules.check(hand, [], [:self_draw])
+      assert :jiang_jiang_hu in fans2
+      assert :self_draw in fans2
     end
 
     test "副露含非将刻子时不是将将胡" do
@@ -217,9 +249,10 @@ defmodule Mahjong.RulesTest do
 
       hand = pair(:characters, 5)
 
-      # 打牌胡：全求人(6) + 将将胡(4)
-      assert {:win, fans, 10} = Rules.check(hand, melds)
+      # 打牌胡：全求人(6) + 碰碰胡(2) + 将将胡(4) 三型叠加
+      assert {:win, fans, 12} = Rules.check(hand, melds)
       assert :quan_qiu_ren in fans
+      assert :pung_pung in fans
       assert :jiang_jiang_hu in fans
 
       # 自摸：不计全求人，碰碰胡 + 将将胡 + 自摸

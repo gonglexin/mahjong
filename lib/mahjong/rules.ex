@@ -62,25 +62,41 @@ defmodule Mahjong.Rules do
   返回 `{:win, fans, score}`，番数 = 番型数量；不胡返回 `:no_win`。
   """
   @spec check([Tile.t()], [meld()], [flag()]) :: {:win, [fan()], pos_integer()} | :no_win
+
+  # 五种独立牌型：全求人 / 将将胡 / 碰碰胡 / 清一色 / 七小对。
+  # 同时命中多型则全部叠加计番（如全求人将将胡、碰碰胡将将胡、清一色碰碰胡）。
+  # 平胡（258 做【将】）为底：未被更高牌型包含时单独计番。
   def check(hand, melds \\ [], flags \\ []) do
-    base_fans =
-      cond do
-        seven_pairs?(hand, melds) -> [:seven_pairs]
-        # 全求人：打牌胡（大牌），不要求将——四组碰/杠齐，最后一张任意
-        quan_qiu_ren?(hand, melds) and :self_draw not in flags -> [:quan_qiu_ren]
-        win = standard_win(hand, melds) -> win
-        # 自摸兜底：碰/杠全露剩两张，任意一张都可和（不计全求人番）
-        quan_qiu_ren?(hand, melds) -> [:ping_hu]
-        true -> nil
-      end
+    all_tiles = hand ++ Enum.flat_map(melds, & &1.tiles)
+    discard_win? = :self_draw not in flags
+    jj? = jiang_jiang?(all_tiles)
+    pung_pung? = pung_pung_shape?(hand, melds)
+    pure_suit? = pure_suit_shape?(hand, melds)
+    seven_pairs? = seven_pairs?(hand, melds)
 
-    if base_fans do
-      all_tiles = hand ++ Enum.flat_map(melds, & &1.tiles)
+    # 全求人：四组副露（吃碰杠皆可）+ 手牌剩两张，打牌胡为大牌；
+    # 自摸同样可和（不计全求人番，兜底平胡）
+    quan_qiu? = quan_qiu_ren?(hand, melds) and discard_win?
+    quan_qiu_fallback? = quan_qiu_ren?(hand, melds) and not discard_win?
 
+    # 平胡：258 做【将】的顺/刻分解；被碰碰胡/将将胡包含时不单独叫
+    # 兜底自摸（碰/杠全露剩两张）以平胡命名，使「可和」有番可计
+    ping_hu? = ping_hu_shape?(hand, melds) and not pung_pung? and not jj?
+    ping_hu_named? = ping_hu? or quan_qiu_fallback?
+
+    win? =
+      seven_pairs? or jj? or quan_qiu? or pung_pung? or pure_suit? or ping_hu? or
+        quan_qiu_fallback?
+
+    if win? do
       fans =
-        base_fans
-        |> append_fan(:pure_suit, pure_suit?(all_tiles))
-        |> append_fan(:jiang_jiang_hu, jiang_jiang?(all_tiles))
+        []
+        |> append_fan(:seven_pairs, seven_pairs?)
+        |> append_fan(:jiang_jiang_hu, jj?)
+        |> append_fan(:quan_qiu_ren, quan_qiu?)
+        |> append_fan(:pung_pung, pung_pung?)
+        |> append_fan(:pure_suit, pure_suit?)
+        |> append_fan(:ping_hu, ping_hu_named?)
         |> append_fan(:self_draw, :self_draw in flags)
         |> append_fan(:heavenly, :heavenly in flags)
         |> append_fan(:earthly, :earthly in flags)
@@ -100,44 +116,50 @@ defmodule Mahjong.Rules do
     length(melds) == 4 and length(hand) == 2
   end
 
-  # 将将胡：手牌与副露的所有牌均为 2/5/8 将牌（可胡任意完成牌型的将）
+  # 将将胡：手牌与副露的所有牌均为 2/5/8（不要求能分解成对子/刻顺；
+  # 整副牌 ≥14 张，杠手会多出替换张）
   defp jiang_jiang?(all_tiles) do
-    all_tiles != [] and Enum.all?(all_tiles, &(&1.value in [2, 5, 8]))
+    length(all_tiles) >= 14 and Enum.all?(all_tiles, &(&1.value in [2, 5, 8]))
   end
 
-  # 标准牌型：暗牌分解为 (4 - 副露数) 副刻/顺 + 一对将。
-  # 碰碰胡：副露无吃且暗牌可全刻分解，任意将；
-  # 平胡：将必须 2/5/8。
-  defp standard_win(hand, melds) do
-    counts = count_map(hand)
-    sets_needed = 4 - length(melds)
-
+  # 碰碰胡：副露全为刻/杠 + 暗牌可全刻分解 + 任意一对做将
+  defp pung_pung_shape?(hand, melds) do
     melds_all_pung? =
       Enum.all?(melds, &(&1.type in [:pong, :kong_open, :kong_concealed, :kong_added]))
+
+    melds_all_pung? and decomposable_with_pair?(hand, melds, :pung_only)
+  end
+
+  # 清一色：同花色 + 任意一对做将的顺/刻分解（不要求 258）
+  defp pure_suit_shape?(hand, melds) do
+    pure_suit?(hand ++ Enum.flat_map(melds, & &1.tiles)) and
+      decomposable_with_pair?(hand, melds, :any)
+  end
+
+  # 平胡：258 做将的顺/刻分解
+  defp ping_hu_shape?(hand, melds), do: decomposable_with_pair?(hand, melds, 258)
+
+  defp decomposable_with_pair?(hand, melds, pair_rule) do
+    counts = count_map(hand)
+    sets_needed = 4 - length(melds)
 
     pair_keys =
       for {{suit, value}, count} <- counts, count >= 2, do: {suit, value}
 
-    # 碰碰胡：暗牌全刻分解 + 副露全刻
-    pung_pung_win? =
-      melds_all_pung? and
-        Enum.any?(pair_keys, fn pair ->
-          counts |> Map.update!(pair, &(&1 - 2)) |> decomposable_pung?(sets_needed)
-        end)
+    Enum.any?(pair_keys, fn {_suit, value} = pair ->
+      pair_ok? =
+        case pair_rule do
+          :pung_only -> true
+          :any -> true
+          258 -> value in [2, 5, 8]
+        end
 
-    if pung_pung_win? do
-      [:pung_pung]
-    else
-      # 平胡：258 将 + 顺/刻混合分解
-      pma_pair? =
-        Enum.any?(pair_keys, fn {_suit, value} = pair ->
-          value in [2, 5, 8] and
-            counts |> Map.update!(pair, &(&1 - 2)) |> decomposable?(sets_needed)
-        end)
-
-      if pma_pair?, do: [:ping_hu]
-    end
+      pair_ok? and counts |> Map.update!(pair, &(&1 - 2)) |> decompose_melds?(sets_needed, pair_rule)
+    end)
   end
+
+  defp decompose_melds?(counts, n, :pung_only), do: decomposable_pung?(counts, n)
+  defp decompose_melds?(counts, n, _pair_rule), do: decomposable?(counts, n)
 
   # 只用刻子分解
   defp decomposable_pung?(counts, 0), do: Enum.all?(counts, fn {_key, count} -> count == 0 end)

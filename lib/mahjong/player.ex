@@ -65,17 +65,24 @@ defmodule Mahjong.Player do
     %{player | hand: player.hand ++ [tile], drawn: tile, in_turn?: true}
   end
 
-  @doc "出牌：手牌重新排序；刚摸的牌随之并入手中（drawn 清除）"
+  @doc "出牌：按 id 精确移除被点中的那张（手牌可能持有同面值的两张），手牌重新排序，drawn 清除"
   def discard(player, tile) do
-    hand = Tile.remove_one(player.hand, tile)
+    hand = remove_by_id(player.hand, tile.id)
 
     %{
       player
       | hand: sort_hand(hand),
-        discards: player.discards ++ [tile],
+        discards: List.delete(player.discards, tile) ++ [tile],
         in_turn?: false,
         drawn: nil
     }
+  end
+
+  defp remove_by_id(hand, id) do
+    case Enum.find_index(hand, &(&1.id == id)) do
+      nil -> hand
+      index -> List.delete_at(hand, index)
+    end
   end
 
   @doc "碰：手牌中两张同牌 + 别人打出的牌组成刻子"
