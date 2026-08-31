@@ -92,7 +92,7 @@ defmodule Mahjong.RulesTest do
   end
 
   describe "全求人 / 将将胡" do
-    test "全求人：打牌胡，四组碰/杠 + 手牌两张（不要求将）" do
+    test "全求人：单钓将——和的那张必须与手中最后一张同牌" do
       melds = [
         %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
         %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
@@ -100,22 +100,21 @@ defmodule Mahjong.RulesTest do
         %{type: :pong, tiles: triplet(:dots, 9), from: "p"}
       ]
 
-      # 手牌两张不同（最后一张任意）也胡，且为大牌
+      # 手牌两张不同：无法单钓，不是全求人，也不是和牌
       hand = [tile(:bamboos, 4), tile(:dots, 4)]
 
-      assert {:win, fans, score} = Rules.check(hand, melds)
-      assert :quan_qiu_ren in fans
-      assert score == 6
+      assert :no_win = Rules.check(hand, melds)
 
-      # 手牌成对（单钓将）：全求人 + 碰碰胡 叠加，6+2=8
+      # 自摸同样的牌凑成对：全求人(6) + 碰碰胡(2) + 自摸(1) = 9
       hand2 = pair(:bamboos, 4)
-      assert {:win, fans2, 8} = Rules.check(hand2, melds)
+      assert {:win, fans2, 9} = Rules.check(hand2, melds, [:self_draw])
       assert :quan_qiu_ren in fans2
       assert :pung_pung in fans2
+      assert :self_draw in fans2
       refute :ping_hu in fans2
     end
 
-    test "自摸：四组碰/杠 + 手牌两张任意可和，但不计全求人番" do
+    test "自摸同样计全求人大牌" do
       melds = [
         %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
         %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
@@ -123,19 +122,13 @@ defmodule Mahjong.RulesTest do
         %{type: :pong, tiles: triplet(:dots, 9), from: "p"}
       ]
 
-      # 自摸到同样的牌（成对）：碰碰胡 + 自摸
       hand = pair(:bamboos, 4)
-      assert {:win, fans, _} = Rules.check(hand, melds, [:self_draw])
+
+      # 自摸成对：全求人(6) + 碰碰胡(2) + 自摸(1)
+      assert {:win, fans, 9} = Rules.check(hand, melds, [:self_draw])
+      assert :quan_qiu_ren in fans
       assert :pung_pung in fans
       assert :self_draw in fans
-      refute :quan_qiu_ren in fans
-
-      # 自摸到任意牌（两张不同）：兜底平胡 + 自摸
-      hand2 = [tile(:bamboos, 4), tile(:dots, 4)]
-      assert {:win, fans2, _} = Rules.check(hand2, melds, [:self_draw])
-      assert :ping_hu in fans2
-      assert :self_draw in fans2
-      refute :quan_qiu_ren in fans2
     end
 
     test "全求人：副露吃碰杠皆可" do
@@ -148,13 +141,13 @@ defmodule Mahjong.RulesTest do
 
       hand = pair(:bamboos, 4)
 
-      # 打牌胡：含吃的四组副露同样是全求人大牌
+      # 含吃的四组副露 + 单钓将：全求人大牌
       assert {:win, fans, 6} = Rules.check(hand, melds)
       assert :quan_qiu_ren in fans
 
-      # 自摸：可和，不计全求人
-      assert {:win, fans2, _} = Rules.check(hand, melds, [:self_draw])
-      refute :quan_qiu_ren in fans2
+      # 自摸：同样计全求人 + 自摸
+      assert {:win, fans2, 7} = Rules.check(hand, melds, [:self_draw])
+      assert :quan_qiu_ren in fans2
       assert :self_draw in fans2
     end
 
@@ -255,9 +248,10 @@ defmodule Mahjong.RulesTest do
       assert :pung_pung in fans
       assert :jiang_jiang_hu in fans
 
-      # 自摸：不计全求人，碰碰胡 + 将将胡 + 自摸
-      assert {:win, fans2, _} = Rules.check(hand, melds, [:self_draw])
-      refute :quan_qiu_ren in fans2
+      # 自摸单钓成对同样成立：全求人(6) + 碰碰胡(2) + 将将胡(4) + 自摸(1)
+      assert {:win, fans2, 13} = Rules.check(hand, melds, [:self_draw])
+      assert :quan_qiu_ren in fans2
+      assert :pung_pung in fans2
       assert :jiang_jiang_hu in fans2
       assert :self_draw in fans2
     end

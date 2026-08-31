@@ -68,25 +68,20 @@ defmodule Mahjong.Rules do
   # 平胡（258 做【将】）为底：未被更高牌型包含时单独计番。
   def check(hand, melds \\ [], flags \\ []) do
     all_tiles = hand ++ Enum.flat_map(melds, & &1.tiles)
-    discard_win? = :self_draw not in flags
     jj? = jiang_jiang?(all_tiles)
     pung_pung? = pung_pung_shape?(hand, melds)
     pure_suit? = pure_suit_shape?(hand, melds)
     seven_pairs? = seven_pairs?(hand, melds)
 
-    # 全求人：四组副露（吃碰杠皆可）+ 手牌剩两张，打牌胡为大牌；
-    # 自摸同样可和（不计全求人番，兜底平胡）
-    quan_qiu? = quan_qiu_ren?(hand, melds) and discard_win?
-    quan_qiu_fallback? = quan_qiu_ren?(hand, melds) and not discard_win?
+    # 全求人：四组副露（吃碰杠皆可）+ 单钓将——无论点炮还是自摸，
+    # 和的那张必须与手中最后一张同牌；大牌 6 番
+    quan_qiu? = quan_qiu_ren?(hand, melds)
 
-    # 平胡：258 做【将】的顺/刻分解；被碰碰胡/将将胡包含时不单独叫
-    # 兜底自摸（碰/杠全露剩两张）以平胡命名，使「可和」有番可计
-    ping_hu? = ping_hu_shape?(hand, melds) and not pung_pung? and not jj?
-    ping_hu_named? = ping_hu? or quan_qiu_fallback?
+    # 平胡：258 做【将】的顺/刻分解；被碰碰胡/将将胡/全求人包含时不单独叫
+    ping_hu? = ping_hu_shape?(hand, melds) and not pung_pung? and not jj? and not quan_qiu?
 
     win? =
-      seven_pairs? or jj? or quan_qiu? or pung_pung? or pure_suit? or ping_hu? or
-        quan_qiu_fallback?
+      seven_pairs? or jj? or quan_qiu? or pung_pung? or pure_suit? or ping_hu?
 
     if win? do
       fans =
@@ -96,7 +91,7 @@ defmodule Mahjong.Rules do
         |> append_fan(:quan_qiu_ren, quan_qiu?)
         |> append_fan(:pung_pung, pung_pung?)
         |> append_fan(:pure_suit, pure_suit?)
-        |> append_fan(:ping_hu, ping_hu_named?)
+        |> append_fan(:ping_hu, ping_hu?)
         |> append_fan(:self_draw, :self_draw in flags)
         |> append_fan(:heavenly, :heavenly in flags)
         |> append_fan(:earthly, :earthly in flags)
@@ -111,9 +106,12 @@ defmodule Mahjong.Rules do
     end
   end
 
-  # 全求人：四组副露（吃碰杠皆可）+ 手牌剩两张（不要求将，任一张皆可和）
+  # 全求人：四组副露（吃碰杠皆可）+ 单钓将——和的那张必须与手中
+  # 最后一张同牌；点炮与自摸皆计大牌 6 番
   defp quan_qiu_ren?(hand, melds) do
-    length(melds) == 4 and length(hand) == 2
+    length(melds) == 4 and
+      length(hand) == 2 and
+      Tile.same?(hd(hand), hd(tl(hand)))
   end
 
   # 将将胡：手牌与副露的所有牌均为 2/5/8（不要求能分解成对子/刻顺；
