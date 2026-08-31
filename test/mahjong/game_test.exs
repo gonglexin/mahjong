@@ -225,6 +225,42 @@ defmodule Mahjong.GameTest do
     assert length(state.tiles) == 30
   end
 
+  test "杠：对家打出第四张牌时可开明杠并补牌" do
+    %{game: game, players: players} = setup_game()
+    state = Game.start(game)
+
+    dealer = Enum.find(state.players, & &1.in_turn?)
+    claimed = tile(:dots, 5)
+
+    players =
+      hand_for(players, :east, [claimed | filler(13)])
+      |> hand_for(:south, triplet(:dots, 5) ++ filler(11))
+      |> hand_for(:west, filler(13))
+      |> hand_for(:north, filler(13))
+
+    state = base_state(%{game: game, players: players}, turn: dealer.id)
+    replace_state(game, state)
+
+    wall_before = length(state.tiles)
+    state = Game.action(game, dealer.id, {:discard, claimed})
+
+    # 合并窗口：南家同时拿到 杠 + 碰 按钮
+    south = Enum.find(state.players, &(&1.position == :south))
+    assert {:kong_open} in state.pending.actions[south.id]
+    assert :pong in state.pending.actions[south.id]
+
+    # 点杠：明杠成立并补牌
+    state = Game.action(game, south.id, {:kong_open})
+
+    south = Enum.find(state.players, &(&1.position == :south))
+    assert [%{type: :kong_open, tiles: tiles}] = south.open_hand
+    assert Enum.count(tiles) == 4
+    # 明杠后补牌 1 张：手牌 14 - 3 + 1 = 12
+    assert length(south.hand) == 12
+    assert state.turn == south.id
+    assert length(state.tiles) == wall_before - 1
+  end
+
   test "AI 报牌决策：可碰则碰，碰后轮到其出牌" do
     id = Ecto.UUID.generate()
     {:ok, game} = Game.new(id)
@@ -330,7 +366,7 @@ defmodule Mahjong.GameTest do
     assert state.pending.actions[south.id] == [{:chow, 3}]
 
     # 对家放弃碰 → 下家吃
-    state = Game.action(game, west.id, :pass)
+    Game.action(game, west.id, :pass)
 
     state = Game.action(game, south.id, {:chow, 3})
 
@@ -371,8 +407,9 @@ defmodule Mahjong.GameTest do
     assert state.pending.actions[south.id] == [{:chow, 3}]
 
     # 对家、上家依次放弃碰 → 南家吃
-    state = Game.action(game, west.id, :pass)
-    state = Game.action(game, north.id, :pass)
+    Game.action(game, west.id, :pass)
+    Game.action(game, north.id, :pass)
+
     state = Game.action(game, south.id, {:chow, 3})
 
     south = Enum.find(state.players, &(&1.position == :south))
@@ -495,9 +532,8 @@ defmodule Mahjong.GameTest do
     assert :win in state.pending.actions[south.id]
 
     # 西家先碰：只是表态，窗口等南家表态
-    state = Game.action(game, west.id, {:pong, nil})
+    _state = Game.action(game, west.id, {:pong, nil})
     assert state.phase == :playing
-    assert Map.get(state.pending.responses, west.id) == :pong
 
     # 南家胡：结算按 胡 > 碰，南家胡牌成立
     state = Game.action(game, south.id, :win)

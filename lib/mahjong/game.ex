@@ -479,7 +479,7 @@ defmodule Mahjong.Game do
       id = Enum.find(order, &(Map.get(claims, &1) == :win)) ->
         apply_discard_win(state, id)
 
-      id = Enum.find(order, &(Map.get(claims, &1) in [:pong, {:kong_open}])) ->
+      id = Enum.find(order, &(Map.get(claims, &1) in [:pong, :kong_open])) ->
         apply_take(state, id, Map.get(claims, id))
 
       id = Enum.find(order, &match?({:chow, _}, Map.get(claims, &1))) ->
@@ -553,8 +553,8 @@ defmodule Mahjong.Game do
       end
 
     with %{pending: pending} when not is_nil(pending) <- state,
-         true <- player_id in pending.eligible,
-         true <- base_action in Map.get(pending.actions, player_id, []),
+         actions = Map.get(pending.actions, player_id, []),
+         true <- has_action?(actions, base_action),
          %Player{} = player <- find_player(state, player_id),
          tile = elem(state.last_discard, 1),
          true <- valid_claim?(player, tile, base_action) do
@@ -565,6 +565,15 @@ defmodule Mahjong.Game do
     else
       _ -> {:reply, {:error, :invalid_claim}, state}
     end
+  end
+
+  # 动作表里的杠以元组 {:kong_open} 存储，其余为原子（:pong/:win/{:chow, n}）
+  defp has_action?(actions, :kong_open) do
+    Enum.any?(actions, &(&1 == :kong_open or match?({:kong_open}, &1)))
+  end
+
+  defp has_action?(actions, base_action) do
+    base_action in actions
   end
 
   # 结算优先级的座位序：从弃牌者的下家开始逆时针
