@@ -343,6 +343,7 @@ body {
   line-height: 1;
   color: var(--bone);
   font-variant-numeric: tabular-nums;
+  transform: translateY(0.06em);
 }
 
 .wall-count-low {
@@ -350,10 +351,14 @@ body {
 }
 
 .wall-label {
-  margin-top: 0.35rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.4rem;
   font-size: 0.58rem;
   letter-spacing: 0.42em;
   text-indent: 0.42em;
+  text-align: center;
   color: var(--bone-faint);
 }
 
@@ -371,7 +376,14 @@ body {
 .seat-bottom { bottom: 0.9rem; left: 50%; transform: translateX(-50%); flex-direction: column; }
 .seat-top { top: 0.9rem; left: 50%; transform: translateX(-50%); flex-direction: column-reverse; }
 .seat-left { left: 0.9rem; top: 50%; transform: translateY(-50%); flex-direction: row-reverse; }
+
 .seat-right { right: 0.9rem; top: 50%; transform: translateY(-50%); flex-direction: row; }
+
+.seat-avatar {
+  width: 1.2rem;
+  height: 1.2rem;
+  flex: none;
+}
 
 .seat-id {
   order: 3;

@@ -152,6 +152,7 @@
             @phase == :playing && player.position == @turn_position && "seat-id-turn"
           ]}>
             <span class="wind-glyph">{position_label(player.position)}</span>
+            <.avatar name={player.token || player.id} class="seat-avatar" />
             <span>
               {Player.persona_label(player.persona) ||
                 String.slice(player.token || player.id, 0, 8)}

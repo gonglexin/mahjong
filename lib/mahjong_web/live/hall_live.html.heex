@@ -29,8 +29,9 @@
               :for={player <- Game.players(game)}
               class="seat-slot seat-slot-filled"
               title={String.slice(player.token || player.id, 0, 8)}
-            />
-            <span :for={_ <- 1..(4 - Enum.count(Game.players(game)))} class="seat-slot" />
+            >
+              <.avatar name={player.token || player.id} />
+            </span>
           </div>
           <div>
             <%= if @current_player.game_id == id do %>
