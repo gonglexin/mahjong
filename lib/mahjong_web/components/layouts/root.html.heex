@@ -1,40 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Mahjong" suffix=" · Phoenix Framework" phx-no-format>{assigns[:page_title]}</.live_title>
+    <.live_title default="雀馆 Mahjong" suffix="" phx-no-format>{assigns[:page_title]}</.live_title>
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
-    </script>
-    <script>
-      (() => {
-        const setTheme = (theme) => {
-          const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.setAttribute("data-theme", systemTheme());
-            document.documentElement.setAttribute("data-theme-source", "system");
-          } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-            document.documentElement.setAttribute("data-theme-source", "user");
-          }
-        };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
-        }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
-
-        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-          if (document.documentElement.getAttribute("data-theme-source") === "system") {
-            document.documentElement.setAttribute("data-theme", systemTheme());
-          }
-        });
-      })();
     </script>
     <script type="module">
       import { minidenticonSvg } from 'https://cdn.jsdelivr.net/npm/minidenticons@4.2.1/minidenticons.min.js'
@@ -42,6 +14,23 @@
     {Application.get_env(:live_debugger, :live_debugger_tags)}
   </head>
   <body>
+    <!--
+      DESIGN CONTRACT · 沪上牌馆 Shanghai Deco Mahjong Parlor · seed 5c41a169 · code-led
+      THESIS: a 1930s Shanghai mahjong parlor's material system — lacquer black, jade,
+      brass, bone — flattened to hairlines and geometry; it refuses the casino green-felt
+      and gold-emboss defaults of digital mahjong.
+      OWN-WORLD: lacquer near-black ground; jade marks only the living state (turn,
+      available actions); 1px brass hairlines carry every interactive surface; bone white
+      belongs to tile faces; vermilion appears only on the win seal. No texture, no
+      emboss; gradients exist only as material light, never decoration.
+      FIRST VIEWPORT: one full-viewport lacquer table; the hand lies below as bone
+      plates; the center compass is a minimal deco sunburst with wind seats and a
+      tabular wall count; whose turn it is must read from brightness alone.
+      SIGNATURE: a discard lands with a settle — rise, drop, shadow tightening; claim
+      buttons (碰/杠/吃/胡) are engraved bone plates.
+      REACH: the four tokens and the double-hairline frame unify hall and game.
+      RISK: deco overreach becomes casino relief; all ornament stays 1px geometry.
+    -->
     {@inner_content}
   </body>
 </html>

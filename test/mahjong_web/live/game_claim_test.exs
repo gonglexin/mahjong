@@ -19,7 +19,7 @@ defmodule MahjongWeb.GameClaimTest do
 
   defp seq(suit, base), do: for(v <- base..(base + 2), do: tile(suit, v))
 
-  defp pair(suit, v), do: List.duplicate(tile(suit, v), 2)
+  defp pair(suit, v), do: [tile(suit, v), tile(suit, v)]
 
   test "出牌后可碰的玩家看到碰按钮并能完成碰", %{conn: conn} do
     # 各自先请求一次首页，让浏览器管线写入稳定的 session token（与生产一致）

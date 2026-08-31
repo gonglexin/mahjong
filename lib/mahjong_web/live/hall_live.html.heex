@@ -1,33 +1,50 @@
 <Layouts.app flash={@flash}>
-  <div class="flex flex-col">
-    <div class="flex space-x-2">
-      <.button phx-click="new_game">New Game</.button>
-    </div>
-    <.table id="games" rows={@streams.games}>
-      <:col :let={{id, _game}} label="Game">
-        <.link patch={~p"/game/#{id}"}>
-          <.room id={id} />
-        </.link>
-      </:col>
-      <:col :let={{_id, game}} label="Players">
-        <div class="flex">
-          <.avatar :for={player <- Game.players(game)} name={player.token} class="m-1" />
+  <div class="table-shell">
+    <header class="table-head">
+      <div class="brand-seal" aria-hidden="true">雀</div>
+      <div class="brand-word">MAHJONG<small>雀馆</small></div>
+      <div class="guide-words">
+        <span>包间</span>
+        <span class="gw-sep"></span>
+        <span>四人同桌 · 缺位由 AI 补齐</span>
+      </div>
+    </header>
+
+    <main class="hall-body">
+      <div class="hall-lead">
+        <div>
+          <h1 class="hall-title">大厅</h1>
+          <p class="hall-sub">每一间包间都是一桌正在进行的牌局</p>
         </div>
-      </:col>
-      <:col :let={{_id, game}} label="PID">
-        {inspect(game)}
-      </:col>
-      <:action :let={{id, _game}}>
-        <%= if @current_player.game_id == id do %>
-          <.button phx-click={JS.dispatch("click", to: {:inner, "a"})}>
-            <.link patch={~p"/game/#{id}"}>Go</.link>
-          </.button>
-        <% else %>
-          <.button phx-click="join" phx-value-id={id}>
-            Join
-          </.button>
-        <% end %>
-      </:action>
-    </.table>
+        <button class="act act-primary" phx-click="new_game">开新局</button>
+      </div>
+      <div id="games" phx-update="stream" class="room-list">
+        <div id="games-empty" class="hall-empty hidden only:block">尚无牌局 · 开一间新局</div>
+
+        <div :for={{id, game} <- @streams.games} id={id} class="room-row">
+          <.room id={id} />
+          <div class="room-name">{String.slice(id, 0, 8)}</div>
+          <div class="seat-slots">
+            <span
+              :for={player <- Game.players(game)}
+              class="seat-slot seat-slot-filled"
+              title={String.slice(player.token || player.id, 0, 8)}
+            />
+            <span :for={_ <- 1..(4 - Enum.count(Game.players(game)))} class="seat-slot" />
+          </div>
+          <div>
+            <%= if @current_player.game_id == id do %>
+              <button class="act" phx-click={JS.dispatch("click", to: {:inner, "a"})}>
+                <.link patch={~p"/game/#{id}"} class="!text-inherit !no-underline">入局</.link>
+              </button>
+            <% else %>
+              <button class="act" phx-click="join" phx-value-id={id}>
+                入座
+              </button>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </main>
   </div>
 </Layouts.app>

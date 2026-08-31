@@ -103,32 +103,36 @@ defmodule MahjongWeb.GameLive do
   defp action_buttons(actions) do
     Enum.map(actions, fn
       :win ->
-        %{label: "胡", value: "win", class: "btn-error"}
+        %{label: "胡", value: "win", class: "act act-win"}
 
       :pass ->
-        %{label: "过", value: "pass", class: "btn-ghost"}
+        %{label: "过", value: "pass", class: "act act-pass"}
 
       :pong ->
-        %{label: "碰", value: "pong", class: "btn-warning"}
+        %{label: "碰", value: "pong", class: "act act-claim act-claim-primary"}
 
       {:kong_open} ->
-        %{label: "杠", value: "kong_open", class: "btn-warning"}
+        %{label: "杠", value: "kong_open", class: "act act-claim act-claim-primary"}
 
       {:chow, base} ->
-        %{label: "吃 #{base}-#{base + 1}-#{base + 2}", value: "chow:#{base}", class: "btn-info"}
+        %{
+          label: "吃 #{base}-#{base + 1}-#{base + 2}",
+          value: "chow:#{base}",
+          class: "act act-claim"
+        }
 
       {:kong_concealed, t} ->
         %{
           label: "暗杠 #{t.value}",
           value: "kong_concealed:#{t.suit}:#{t.value}",
-          class: "btn-warning"
+          class: "act act-claim"
         }
 
       {:kong_added, t} ->
         %{
           label: "加杠 #{t.value}",
           value: "kong_added:#{t.suit}:#{t.value}",
-          class: "btn-warning"
+          class: "act act-claim"
         }
     end)
   end
@@ -177,7 +181,7 @@ defmodule MahjongWeb.GameLive do
     |> assign(:result, game_state.result)
     |> assign(:action_buttons, action_buttons(viewer_actions(game_state, viewer)))
     |> assign(:waiting_others, game_state.pending != nil)
-    |> stream(:players, game_state.players, reset: true)
+    |> stream(:players, game_state.players)
   end
 
   defp viewer_actions(_game_state, nil), do: []
