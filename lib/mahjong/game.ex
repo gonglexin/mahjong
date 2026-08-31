@@ -246,7 +246,6 @@ defmodule Mahjong.Game do
   # -- 胡（点炮 / 自摸）--------------------------------------------------------
 
   def handle_call({player_id, :win}, _, %{phase: :playing} = state) do
-    IO.puts("DBG :win reached; pending=#{inspect(Map.get(state, :pending))}")
     cond do
       # 点炮：报牌窗口内声明胡（结算在全员表态后按 胡 > 碰/杠 > 吃 定夺）
       match?(%{eligible: _}, state.pending) and win_claim?(state, player_id) ->
