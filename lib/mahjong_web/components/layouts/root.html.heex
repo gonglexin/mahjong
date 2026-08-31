@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
     <.live_title default="雀馆 Mahjong" suffix="" phx-no-format>{assigns[:page_title]}</.live_title>
+    <meta property="og:title" content="雀馆 Mahjong" />
+    <meta
+      property="og:description"
+      content="链接即入局 · 四人同桌 · 缺位由 AI 补齐的在线麻将房"
+    />
+    <meta property="og:image" content="https://mahjong.gonglexin.com/images/og-image.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="雀馆 Mahjong" />
+    <meta
+      name="twitter:description"
+      content="链接即入局 · 四人同桌 · 缺位由 AI 补齐的在线麻将房"
+    />
+    <meta name="twitter:image" content="https://mahjong.gonglexin.com/images/og-image.png" />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
