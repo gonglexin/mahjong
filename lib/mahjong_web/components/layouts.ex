@@ -89,4 +89,21 @@ defmodule MahjongWeb.Layouts do
     </div>
     """
   end
+
+  @doc """
+  作者信息：X / Bluesky / 个人网站。用于页脚与候局铭牌。
+  """
+  def author_links(assigns) do
+    ~H"""
+    <span class="author-links">
+      <span class="author-name">作者 GONGLEXIN</span>
+      <span class="author-sep"></span>
+      <a href="https://x.com/gonglexin" target="_blank" rel="noopener">X</a>
+      <span class="author-sep"></span>
+      <a href="https://bsky.app/profile/gonglexin.com" target="_blank" rel="noopener">Bluesky</a>
+      <span class="author-sep"></span>
+      <a href="https://gonglexin.com" target="_blank" rel="noopener">gonglexin.com</a>
+    </span>
+    """
+  end
 end
