@@ -183,15 +183,18 @@
         </div>
       </div>
 
-      <%!-- 报牌动作 --%>
+      <%!-- 报牌动作：吃/碰/杠按钮带迷你牌面 --%>
       <div :if={@action_buttons != [] and @phase == :playing} class="action-fan">
         <button
           :for={button <- @action_buttons}
-          class={button.class}
+          class={["act", button.class]}
           phx-click="action"
           phx-value-action={button.value}
         >
-          {button.label}
+          <span class="act-tag">{button.label}</span>
+          <span :if={button.tiles != []} class="act-tiles">
+            <.tile :for={t <- button.tiles} tile={t} show={true} class="tile-mini" />
+          </span>
         </button>
       </div>
 

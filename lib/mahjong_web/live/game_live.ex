@@ -100,41 +100,65 @@ defmodule MahjongWeb.GameLive do
 
   # -- 报牌窗口里可用动作的 UI 描述 ---------------------------------------------
 
-  defp action_buttons(actions) do
+  defp action_buttons(actions, claimed_tile) do
     Enum.map(actions, fn
       :win ->
-        %{label: "胡", value: "win", class: "act act-win"}
+        %{label: "胡", value: "win", tiles: [], class: "act-win"}
 
       :pass ->
-        %{label: "过", value: "pass", class: "act act-pass"}
+        %{label: "过", value: "pass", tiles: [], class: "act-pass"}
 
       :pong ->
-        %{label: "碰", value: "pong", class: "act act-claim act-claim-primary"}
+        %{
+          label: "碰",
+          value: "pong",
+          tiles: meld_minis(claimed_tile, 3),
+          class: "act-claim act-claim-primary"
+        }
 
       {:kong_open} ->
-        %{label: "杠", value: "kong_open", class: "act act-claim act-claim-primary"}
+        %{
+          label: "杠",
+          value: "kong_open",
+          tiles: meld_minis(claimed_tile, 4),
+          class: "act-claim act-claim-primary"
+        }
 
       {:chow, base} ->
-        %{
-          label: "吃 #{base}-#{base + 1}-#{base + 2}",
-          value: "chow:#{base}",
-          class: "act act-claim"
-        }
+        tiles =
+          base..(base + 2)
+          |> Enum.map(&button_tile(claimed_tile.suit, &1))
+
+        %{label: "吃", value: "chow:#{base}", tiles: tiles, class: "act-claim"}
 
       {:kong_concealed, t} ->
         %{
-          label: "暗杠 #{t.value}",
+          label: "暗杠",
           value: "kong_concealed:#{t.suit}:#{t.value}",
-          class: "act act-claim"
+          tiles: List.duplicate(t, 4),
+          class: "act-claim"
         }
 
       {:kong_added, t} ->
         %{
-          label: "加杠 #{t.value}",
+          label: "加杠",
           value: "kong_added:#{t.suit}:#{t.value}",
-          class: "act act-claim"
+          tiles: [t],
+          class: "act-claim"
         }
     end)
+  end
+
+  # 按钮里的迷你牌面：与弃牌同面值的迷你 GIF
+  defp meld_minis(tile, count) when not is_nil(tile), do: List.duplicate(tile, count)
+  defp meld_minis(_tile, _count), do: []
+
+  defp button_tile(suit, value) when not is_nil(suit) do
+    struct(Mahjong.Tile, id: "btn-#{suit}-#{value}", suit: suit, value: value)
+  end
+
+  defp button_tile(_suit, value) do
+    struct(Mahjong.Tile, id: "btn-x-#{value}", suit: :bamboos, value: value)
   end
 
   defp parse_action("pass"), do: {:ok, :pass}
@@ -172,6 +196,8 @@ defmodule MahjongWeb.GameLive do
 
     turn_player = Enum.find(game_state.players, &(&1.id == game_state.turn))
 
+    claimed_tile = game_state.last_discard && elem(game_state.last_discard, 1)
+
     socket
     |> assign(:current_player, current_player)
     |> assign(:turn_position, turn_player && turn_player.position)
@@ -179,7 +205,7 @@ defmodule MahjongWeb.GameLive do
     |> assign(:phase, game_state.phase)
     |> assign(:dealer, game_state.dealer)
     |> assign(:result, game_state.result)
-    |> assign(:action_buttons, action_buttons(viewer_actions(game_state, viewer)))
+    |> assign(:action_buttons, action_buttons(viewer_actions(game_state, viewer), claimed_tile))
     |> assign(:waiting_others, game_state.pending != nil)
     |> stream(:players, game_state.players)
   end
