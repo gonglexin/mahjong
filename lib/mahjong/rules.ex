@@ -66,7 +66,11 @@ defmodule Mahjong.Rules do
     base_fans =
       cond do
         seven_pairs?(hand, melds) -> [:seven_pairs]
+        # 全求人：打牌胡（大牌），不要求将——四组碰/杠齐，最后一张任意
+        quan_qiu_ren?(hand, melds) and :self_draw not in flags -> [:quan_qiu_ren]
         win = standard_win(hand, melds) -> win
+        # 自摸兜底：碰/杠全露剩两张，任意一张都可和（不计全求人番）
+        quan_qiu_ren?(hand, melds) -> [:ping_hu]
         true -> nil
       end
 
@@ -77,7 +81,6 @@ defmodule Mahjong.Rules do
         base_fans
         |> append_fan(:pure_suit, pure_suit?(all_tiles))
         |> append_fan(:jiang_jiang_hu, jiang_jiang?(all_tiles))
-        |> append_fan(:quan_qiu_ren, quan_qiu_ren?(hand, melds))
         |> append_fan(:self_draw, :self_draw in flags)
         |> append_fan(:heavenly, :heavenly in flags)
         |> append_fan(:earthly, :earthly in flags)
@@ -92,12 +95,9 @@ defmodule Mahjong.Rules do
     end
   end
 
-  # 全求人：四组副露全为碰/杠，手牌仅剩待配对的一张（不限 2/5/8）
+  # 全求人：四组副露（吃碰杠皆可）+ 手牌剩两张（不要求将，任一张皆可和）
   defp quan_qiu_ren?(hand, melds) do
-    length(melds) == 4 and
-      Enum.all?(melds, &(&1.type in [:pong, :kong_open, :kong_concealed, :kong_added])) and
-      length(hand) == 2 and
-      Tile.same?(hd(hand), hd(tl(hand)))
+    length(melds) == 4 and length(hand) == 2
   end
 
   # 将将胡：手牌与副露的所有牌均为 2/5/8 将牌（可胡任意完成牌型的将）

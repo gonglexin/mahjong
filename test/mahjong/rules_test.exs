@@ -92,7 +92,7 @@ defmodule Mahjong.RulesTest do
   end
 
   describe "全求人 / 将将胡" do
-    test "全求人：四组碰 + 手牌单张成对，不限将" do
+    test "全求人：打牌胡，四组碰/杠 + 手牌两张（不要求将）" do
       melds = [
         %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
         %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
@@ -100,15 +100,45 @@ defmodule Mahjong.RulesTest do
         %{type: :pong, tiles: triplet(:dots, 9), from: "p"}
       ]
 
-      hand = pair(:bamboos, 4)
+      # 手牌两张不同（最后一张任意）也胡，且为大牌
+      hand = [tile(:bamboos, 4), tile(:dots, 4)]
 
-      assert {:win, fans, _score} = Rules.check(hand, melds)
+      assert {:win, fans, score} = Rules.check(hand, melds)
       assert :quan_qiu_ren in fans
-      assert :pung_pung in fans
-      # 不限 258 将：4 条做将也成立
+      assert score == 6
+
+      # 手牌成对（单钓将）同样是全求人，且不叠加平胡/碰碰胡
+      hand2 = pair(:bamboos, 4)
+      assert {:win, fans2, 6} = Rules.check(hand2, melds)
+      assert :quan_qiu_ren in fans2
+      refute :pung_pung in fans2
+      refute :ping_hu in fans2
     end
 
-    test "手牌两张不同或副露含吃时不是全求人" do
+    test "自摸：四组碰/杠 + 手牌两张任意可和，但不计全求人番" do
+      melds = [
+        %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
+        %{type: :kong_open, tiles: List.duplicate(tile(:bamboos, 7), 4), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 9), from: "p"}
+      ]
+
+      # 自摸到同样的牌（成对）：碰碰胡 + 自摸
+      hand = pair(:bamboos, 4)
+      assert {:win, fans, _} = Rules.check(hand, melds, [:self_draw])
+      assert :pung_pung in fans
+      assert :self_draw in fans
+      refute :quan_qiu_ren in fans
+
+      # 自摸到任意牌（两张不同）：兜底平胡 + 自摸
+      hand2 = [tile(:bamboos, 4), tile(:dots, 4)]
+      assert {:win, fans2, _} = Rules.check(hand2, melds, [:self_draw])
+      assert :ping_hu in fans2
+      assert :self_draw in fans2
+      refute :quan_qiu_ren in fans2
+    end
+
+    test "全求人：副露吃碰杠皆可" do
       melds = [
         %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
         %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
@@ -117,11 +147,27 @@ defmodule Mahjong.RulesTest do
       ]
 
       hand = pair(:bamboos, 4)
-      assert :no_win = Rules.check(hand, melds)
 
-      hand2 = [tile(:bamboos, 4), tile(:dots, 4)]
-      melds2 = Enum.map(melds, &%{&1 | type: :pong})
-      assert :no_win = Rules.check(hand2, melds2)
+      # 打牌胡：含吃的四组副露同样是全求人大牌
+      assert {:win, fans, 6} = Rules.check(hand, melds)
+      assert :quan_qiu_ren in fans
+
+      # 自摸：可和，不计全求人
+      assert {:win, fans2, _} = Rules.check(hand, melds, [:self_draw])
+      refute :quan_qiu_ren in fans2
+      assert :self_draw in fans2
+    end
+
+    test "不足四组时不是全求人" do
+      melds = [
+        %{type: :pong, tiles: triplet(:characters, 1), from: "p"},
+        %{type: :pong, tiles: triplet(:dots, 3), from: "p"},
+        %{type: :chow, tiles: seq(:bamboos, 2), from: "p"}
+      ]
+
+      hand = [tile(:bamboos, 4), tile(:dots, 4), tile(:bamboos, 7), tile(:bamboos, 8)]
+
+      assert :no_win = Rules.check(hand, melds)
     end
 
     test "将将胡：全部为 2/5/8 的刻子与将" do
@@ -161,7 +207,7 @@ defmodule Mahjong.RulesTest do
       refute :jiang_jiang_hu in fans
     end
 
-    test "全求人+将将胡 叠加计分" do
+    test "全求人+将将胡 叠加计分（打牌胡为大牌）" do
       melds = [
         %{type: :pong, tiles: triplet(:characters, 2), from: "p"},
         %{type: :pong, tiles: triplet(:dots, 5), from: "p"},
@@ -171,16 +217,16 @@ defmodule Mahjong.RulesTest do
 
       hand = pair(:characters, 5)
 
-      assert {:win, fans, score} = Rules.check(hand, melds, [:self_draw])
+      # 打牌胡：全求人(6) + 将将胡(4)
+      assert {:win, fans, 10} = Rules.check(hand, melds)
       assert :quan_qiu_ren in fans
       assert :jiang_jiang_hu in fans
 
-      expected =
-        fans
-        |> Enum.map(&Rules.fan_name/1)
-        |> length()
-
-      assert score == expected or score > 6
+      # 自摸：不计全求人，碰碰胡 + 将将胡 + 自摸
+      assert {:win, fans2, _} = Rules.check(hand, melds, [:self_draw])
+      refute :quan_qiu_ren in fans2
+      assert :jiang_jiang_hu in fans2
+      assert :self_draw in fans2
     end
   end
 
