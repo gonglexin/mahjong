@@ -183,19 +183,25 @@
         </div>
       </div>
 
-      <%!-- 报牌动作：吃/碰/杠按钮带迷你牌面 --%>
-      <div :if={@action_buttons != [] and @phase == :playing} class="action-fan">
-        <button
-          :for={button <- @action_buttons}
-          class={["act", button.class]}
-          phx-click="action"
-          phx-value-action={button.value}
-        >
-          <span class="act-tag">{button.label}</span>
-          <span :if={button.tiles != []} class="act-tiles">
-            <.tile :for={t <- button.tiles} tile={t} show={true} class="tile-mini" />
-          </span>
-        </button>
+      <%!-- 报牌动作：吃/碰/杠按钮带迷你牌面；声明后变暗等待结算 --%>
+      <div
+        :if={@action_buttons != [] and @phase == :playing}
+        class={["action-fan", @claim_sent && "claim-sent"]}
+      >
+        <div class="fan-buttons">
+          <button
+            :for={button <- @action_buttons}
+            class={["act", button.class]}
+            phx-click="action"
+            phx-value-action={button.value}
+          >
+            <span class="act-tag">{button.label}</span>
+            <span :if={button.tiles != []} class="act-tiles">
+              <.tile :for={t <- button.tiles} tile={t} show={true} class="tile-mini" />
+            </span>
+          </button>
+        </div>
+        <div :if={@claim_sent} class="fan-hint">已声明 · 等待结算</div>
       </div>
 
       <%!-- 等待提示：有人在报牌窗口中决策 --%>

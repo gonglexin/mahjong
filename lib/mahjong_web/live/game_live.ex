@@ -86,10 +86,17 @@ defmodule MahjongWeb.GameLive do
     %{current_player: player, game: game} = socket.assigns
 
     # 热重载/陈旧 DOM 可能送来未知动作，安全忽略
-    case parse_action(value) do
-      {:ok, action} -> Game.action(game, player.id, action)
-      :error -> :ok
-    end
+    socket =
+      case parse_action(value) do
+        {:ok, action} ->
+          case Game.action(game, player.id, action) do
+            %{} = _new_state -> assign(socket, :claim_sent, true)
+            _ -> socket
+          end
+
+        :error ->
+          socket
+      end
 
     {:noreply, socket}
   end
@@ -207,6 +214,7 @@ defmodule MahjongWeb.GameLive do
     |> assign(:result, game_state.result)
     |> assign(:action_buttons, action_buttons(viewer_actions(game_state, viewer), claimed_tile))
     |> assign(:waiting_others, game_state.pending != nil)
+    |> assign(:claim_sent, false)
     |> stream(:players, game_state.players)
   end
 

@@ -560,6 +560,8 @@ defmodule Mahjong.Game do
          tile = elem(state.last_discard, 1),
          true <- valid_claim?(player, tile, base_action) do
       state = record_claim(state, player_id, base_action)
+
+      broadcast(state)
       {:reply, state, state}
     else
       _ -> {:reply, {:error, :invalid_claim}, state}
