@@ -628,6 +628,7 @@ body {
 .act {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   min-width: 3.1rem;
   padding: 0.4rem 0.7rem;
@@ -646,7 +647,6 @@ body {
 
 .act-tag {
   display: inline-block;
-  transform: translateY(0.02em);
 }
 
 .act-tiles {
@@ -691,17 +691,17 @@ body {
 }
 
 .act-pass {
-  background: transparent;
+  background: rgb(14 20 17 / 0.94);
   border-color: var(--brass-faint);
-  color: var(--bone-dim);
-  box-shadow: none;
+  color: var(--bone);
+  box-shadow: 0 3px 0 rgb(0 0 0 / 0.5);
 }
 
 .act-pass:hover {
-  transform: none;
+  transform: translateY(-2px);
   border-color: var(--brass-dim);
-  color: var(--bone);
-  box-shadow: none;
+  color: var(--jade-bright);
+  box-shadow: 0 3px 0 rgb(0 0 0 / 0.5), 0 7px 16px rgb(0 0 0 / 0.32);
 }
 
 .act-primary {
