@@ -306,7 +306,8 @@ defmodule Mahjong.Game do
 
     with true <- state.turn == player_id and is_nil(state.pending),
          %Player{} = player,
-         meld when not is_nil(meld) <- Enum.find(player.open_hand, &(&1.type == :pong)),
+         meld when not is_nil(meld) <-
+           Enum.find(player.open_hand, &(&1.type == :pong and Tile.same?(hd(&1.tiles), tile))),
          true <- Tile.same?(hd(meld.tiles), tile),
          true <- Tile.count(player.hand, tile) >= 1 do
       player = Player.kong_added(player, tile)
@@ -597,8 +598,6 @@ defmodule Mahjong.Game do
     Enum.all?(eligible, &Map.has_key?(responses, &1))
   end
 
-  defp cancel_timer(state), do: %{state | pending: nil}
-
   defp win_claim?(%{pending: %{eligible: eligible, actions: actions}}, player_id) do
     player_id in eligible and :win in Map.get(actions, player_id, [])
   end
@@ -669,7 +668,6 @@ defmodule Mahjong.Game do
         pending: nil,
         turn: player.id
     }
-    |> cancel_timer()
     |> set_turn(player.id)
     |> maybe_schedule_ai_act()
   end
