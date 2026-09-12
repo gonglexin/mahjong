@@ -1080,6 +1080,25 @@ body {
     min-height: 520px;
   }
 
+  /* Keep side hands against their own rail. The nameplate otherwise takes
+     part in the horizontal flex layout and pushes both hands into the centre. */
+  .seat-left .seat-id,
+  .seat-right .seat-id {
+    position: absolute;
+    bottom: calc(100% + 0.25rem);
+    flex: none;
+  }
+
+  .seat-left,
+  .seat-right,
+  .seat-left .hand-row,
+  .seat-right .hand-row {
+    width: max-content;
+  }
+
+  .seat-left .seat-id { left: 0; }
+  .seat-right .seat-id { right: 0; }
+
   .compass { width: 11.5rem; height: 11.5rem; }
   .wall-hub { width: 3.9rem; height: 3.9rem; }
   .wall-count { font-size: 1.5rem; }
@@ -1152,4 +1171,71 @@ body {
 
   .opening-plate { padding: 1.3rem 1.2rem; width: max-content; max-width: 92%; }
   .chip-brass { font-size: 0.7rem; padding: 0.35rem 0.55rem; }
+}
+
+/* A phone in landscape is wide enough to miss the width breakpoints while
+   still having far less table height than a desktop. Fit the board to the
+   visual viewport and use the same integer 5:7 tile grid as compact mobile. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .table-shell {
+    height: 100svh;
+    min-height: 0;
+  }
+
+  .table-head { padding: 0.35rem 0.65rem; gap: 0.65rem; }
+  .brand-seal { width: 1.8rem; height: 1.8rem; }
+  .brand-word { display: none; }
+  .guide-words { font-size: 0.68rem; gap: 0.5rem; }
+  .link-brass { font-size: 0.7rem; }
+
+  .table-felt {
+    min-height: 0;
+    margin: 0.35rem 0.5rem 0.5rem;
+  }
+
+  .seat { gap: 0.3rem; padding: 0.25rem; }
+  .seat-left,
+  .seat-right { top: calc(50% + 0.7rem); }
+
+  .seat-left .seat-id,
+  .seat-right .seat-id {
+    position: absolute;
+    bottom: calc(100% + 0.2rem);
+    flex: none;
+  }
+
+  .seat-left .seat-id { left: 0; }
+  .seat-right .seat-id { right: 0; }
+  .seat-id { font-size: 0.58rem; padding: 0.16rem 0.38rem; gap: 0.25rem; }
+
+  .compass { width: 8rem; height: 8rem; }
+  .wind-char { width: 1.55rem; height: 1.55rem; font-size: 0.75rem; }
+  .wall-hub { width: 2.9rem; height: 2.9rem; }
+  .wall-count { font-size: 1.1rem; }
+
+  .tile-hand { width: 20px; height: 28px; }
+  .tile-discard { width: 16px; height: 22px; }
+  .hand { gap: 1px; }
+
+  .seat-left .tile-hand,
+  .seat-right .tile-hand { width: 25px; height: 18px; }
+  .seat-left .tile-hand > img,
+  .seat-right .tile-hand > img { width: 18px; height: 25px; }
+  .seat-left .tile-discard,
+  .seat-right .tile-discard { width: 22px; height: 16px; }
+  .seat-left .tile-discard > img,
+  .seat-right .tile-discard > img { width: 16px; height: 22px; }
+
+  .hand-row { gap: 0.3rem; }
+  .melds { gap: 0.25rem; }
+
+  .seat-bottom .tile-drawn,
+  .seat-top .tile-drawn { margin-left: 3px; }
+  .seat-top .tile-drawn { margin-left: 0; margin-right: 3px; }
+  .seat-left .tile-drawn,
+  .seat-right .tile-drawn { margin-top: 2px; }
+  .seat-right .tile-drawn { margin-top: 0; margin-bottom: 2px; }
+
+  .action-fan,
+  .waiting-note { bottom: 4.8rem; }
 }
