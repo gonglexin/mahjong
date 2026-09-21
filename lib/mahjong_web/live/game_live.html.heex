@@ -20,6 +20,19 @@
             <span>候局</span>
         <% end %>
       </div>
+      <%!-- 音效开关：静音状态由前端 hook 持有，服务端不参与 --%>
+      <div id="sound-fx" phx-hook="SoundFX" phx-update="ignore">
+        <button
+          id="sound-toggle"
+          type="button"
+          class="sound-toggle"
+          data-sound-toggle
+          aria-label="音效开关"
+        >
+          <.icon name="hero-speaker-wave" class="sound-icon sound-icon-on" />
+          <.icon name="hero-speaker-x-mark" class="sound-icon sound-icon-off" />
+        </button>
+      </div>
       <.link patch={~p"/"} class="link-brass">回大厅</.link>
     </header>
 

@@ -244,6 +244,54 @@ body {
   border-color: var(--brass-dim);
 }
 
+/** Sound toggle ─────────────────────────────────────────────────── */
+
+.sound-toggle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 1px solid var(--brass-faint);
+  border-radius: 5px;
+  background: transparent;
+  color: var(--brass);
+  cursor: pointer;
+  transition: color 0.15s ease-out, border-color 0.15s ease-out, transform 0.1s ease-out;
+}
+
+.sound-toggle:hover {
+  color: var(--brass-bright);
+  border-color: var(--brass-dim);
+}
+
+.sound-toggle:active {
+  transform: translateY(1px);
+}
+
+.sound-toggle[data-muted="true"] {
+  color: var(--bone-faint);
+}
+
+.sound-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.sound-toggle .sound-icon-off {
+  display: none;
+}
+
+.sound-toggle[data-muted="true"] .sound-icon-on {
+  display: none;
+}
+
+.sound-toggle[data-muted="true"] .sound-icon-off {
+  display: inline-block;
+}
+
 /** The felt ──────────────────────────────────────────────────────── */
 
 .table-felt {

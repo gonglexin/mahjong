@@ -87,7 +87,7 @@ defmodule MahjongWeb.GameClaimTest do
       label: "DBG b assigns ui"
     )
 
-    send(view_b.pid, {:game_update, Game.state(game)})
+    send(view_b.pid, {:game_update, Game.state(game), []})
     Process.sleep(200)
     assigns2 = :sys.get_state(view_b.pid) |> Map.get(:socket) |> Map.get(:assigns)
     IO.inspect(Map.get(assigns2, :action_buttons), label: "DBG buttons after resend")

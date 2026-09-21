@@ -75,7 +75,7 @@ defmodule MahjongWeb.GameLiveTest do
            discards_made: 0,
            kong_draw?: false,
            result: nil
-         }}
+         }, []}
       )
 
       assert render(view) =~ "seat-waiting"
@@ -109,7 +109,7 @@ defmodule MahjongWeb.GameLiveTest do
            discards_made: 0,
            kong_draw?: false,
            result: nil
-         }}
+         }, []}
       )
 
       html = render(view)

@@ -1,7 +1,7 @@
 defmodule MahjongWeb.GameLive do
   use MahjongWeb, :live_view
 
-  alias Mahjong.{Game, Player, Rules}
+  alias Mahjong.{Game, Player, Rules, Tile}
 
   def mount(%{"id" => id}, session, socket) do
     if connected?(socket) do
@@ -101,8 +101,39 @@ defmodule MahjongWeb.GameLive do
     {:noreply, socket}
   end
 
-  def handle_info({:game_update, game_state}, socket) do
-    {:noreply, assign_game(socket, game_state)}
+  def handle_info({:game_update, game_state, events}, socket) do
+    socket =
+      socket
+      |> assign_game(game_state)
+      |> push_sounds(Enum.flat_map(events, &sound_name/1))
+
+    {:noreply, socket}
+  end
+
+  # -- 音效 ---------------------------------------------------------------------
+  # 引擎在广播里直接携带动作事件（game.ex 的 events 字段），这里只做事件→音效名
+  # 映射。人在本地、AI 在远端的动作都走同一条路。
+
+  defp sound_name({:discard, %Tile{} = tile}), do: [tile_sound(tile)]
+  defp sound_name(:pong), do: ["peng"]
+  defp sound_name(:chow), do: ["chi"]
+  defp sound_name(:kong), do: ["gang"]
+  defp sound_name(:self_win), do: ["zimo"]
+  defp sound_name(:discard_win), do: ["hu"]
+  defp sound_name(:wall_empty), do: ["liuju"]
+  defp sound_name(_other), do: []
+
+  # 牌面语音文件名：wan5 → /sounds/tiles/wan5.mp3（万/筒/条）
+  defp tile_sound(%Tile{suit: suit, value: value}) do
+    "#{tile_suit_name(suit)}#{value}"
+  end
+
+  defp tile_suit_name(:characters), do: "wan"
+  defp tile_suit_name(:dots), do: "tong"
+  defp tile_suit_name(:bamboos), do: "tiao"
+
+  defp push_sounds(socket, events) do
+    Enum.reduce(events, socket, &push_event(&2, "play-sound", %{name: &1}))
   end
 
   # -- 报牌窗口里可用动作的 UI 描述 ---------------------------------------------

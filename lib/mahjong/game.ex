@@ -68,6 +68,7 @@ defmodule Mahjong.Game do
        discards_made: 0,
        kong_draw?: false,
        result: nil,
+       events: [],
        ai_timer: nil
      }}
   end
@@ -127,6 +128,7 @@ defmodule Mahjong.Game do
         discards_made: 0,
         kong_draw?: false,
         result: nil,
+        events: [],
         ai_timer: nil
     }
 
@@ -192,7 +194,7 @@ defmodule Mahjong.Game do
           if all_passed?(state), do: resolve_window(state), else: state
         end
 
-      broadcast(state)
+      state = broadcast(state, [{:discard, tile}])
       {:reply, state, state}
     else
       {:reply, {:error, :not_your_turn}, state}
@@ -211,7 +213,7 @@ defmodule Mahjong.Game do
           state
         end
 
-      broadcast(state)
+      state = broadcast(state)
       {:reply, state, state}
     else
       {:reply, {:error, :not_eligible}, state}
@@ -228,7 +230,7 @@ defmodule Mahjong.Game do
          true <- valid_chow?(player.hand, tile, base) do
       state = record_claim(state, player_id, action)
 
-      broadcast(state)
+      state = broadcast(state)
       {:reply, state, state}
     else
       _ -> {:reply, {:error, :invalid_claim}, state}
@@ -251,7 +253,7 @@ defmodule Mahjong.Game do
       match?(%{eligible: _}, state.pending) and win_claim?(state, player_id) ->
         state = record_claim(state, player_id, :win)
 
-        broadcast(state)
+        state = broadcast(state)
         {:reply, state, state}
 
       # 自摸
@@ -271,7 +273,7 @@ defmodule Mahjong.Game do
                 result: %{type: :self_win, winner_id: player_id, fans: fans, score: score}
             }
 
-            broadcast(state)
+            state = broadcast(state, [:self_win])
             {:reply, state, state}
 
           :no_win ->
@@ -294,7 +296,7 @@ defmodule Mahjong.Game do
       player = Player.kong_concealed(player, tile)
       state = draw_for_kong(%{state | players: replace_player(state.players, player)})
 
-      broadcast(state)
+      state = broadcast(state, [:kong])
       {:reply, state, state}
     else
       _ -> {:reply, {:error, :invalid_kong}, state}
@@ -313,7 +315,7 @@ defmodule Mahjong.Game do
       player = Player.kong_added(player, tile)
       state = draw_for_kong(%{state | players: replace_player(state.players, player)})
 
-      broadcast(state)
+      state = broadcast(state, [:kong])
       {:reply, state, state}
     else
       _ -> {:reply, {:error, :invalid_kong}, state}
@@ -337,8 +339,8 @@ defmodule Mahjong.Game do
       ctx = %{wall_left: length(state.tiles)}
       action = Mahjong.AI.decide_turn(player, ctx)
 
+      # handle_call 内部已广播（含音效事件），无需重复广播
       {:reply, _reply, new_state} = handle_call({player_id, action}, nil, state)
-      broadcast(new_state)
       {:noreply, new_state}
     else
       {:noreply, state}
@@ -353,16 +355,15 @@ defmodule Mahjong.Game do
         {:noreply, state}
 
       {id, :pass} ->
+        # handle_call 内部已广播（含音效事件），无需重复广播
         {:reply, _reply, new_state} = handle_call({id, :pass}, nil, state)
         new_state = chain_ai_claims(new_state, gen)
-        broadcast(new_state)
         {:noreply, new_state}
 
       {id, action} ->
         claim = normalize_claim(action)
         {:reply, _reply, new_state} = handle_call({id, claim}, nil, state)
         new_state = chain_ai_claims(new_state, gen)
-        broadcast(new_state)
         {:noreply, new_state}
     end
   end
@@ -561,7 +562,7 @@ defmodule Mahjong.Game do
          true <- valid_claim?(player, tile, base_action) do
       state = record_claim(state, player_id, base_action)
 
-      broadcast(state)
+      state = broadcast(state)
       {:reply, state, state}
     else
       _ -> {:reply, {:error, :invalid_claim}, state}
@@ -612,20 +613,24 @@ defmodule Mahjong.Game do
         player = Player.win(%{player | hand: player.hand ++ [tile]})
         discarder_id = elem(state.last_discard, 0)
 
-        %{
-          state
-          | players: replace_player(state.players, player),
-            phase: :over,
-            pending: nil,
-            last_discard: nil,
-            result: %{
-              type: :discard_win,
-              winner_id: winner_id,
-              loser_id: discarder_id,
-              fans: fans,
-              score: score
-            }
-        }
+        state =
+          %{
+            state
+            | players: replace_player(state.players, player),
+              phase: :over,
+              pending: nil,
+              last_discard: nil,
+              result: %{
+                type: :discard_win,
+                winner_id: winner_id,
+                loser_id: discarder_id,
+                fans: fans,
+                score: score
+              }
+          }
+          |> put_event(:discard_win)
+
+        state
 
       :no_win ->
         state
@@ -645,6 +650,7 @@ defmodule Mahjong.Game do
       end
 
     state = apply_claim(state, player, discarder_id, tile)
+    state = put_event(state, if(action == :kong_open, do: :kong, else: :pong))
 
     if action == :kong_open, do: draw_for_kong(state), else: state
   end
@@ -654,7 +660,7 @@ defmodule Mahjong.Game do
     {discarder_id, tile} = state.last_discard
     player = find_player(state, player_id)
     player = Player.chow(player, tile, base, discarder_id)
-    apply_claim(state, player, discarder_id, tile)
+    apply_claim(put_event(state, :chow), player, discarder_id, tile)
   end
 
   defp apply_claim(state, player, discarder_id, tile) do
@@ -689,7 +695,10 @@ defmodule Mahjong.Game do
   defp draw_next(state) do
     case state.tiles do
       [] ->
-        %{state | phase: :over, last_discard: nil, result: %{type: :wall_empty}}
+        put_event(
+          %{state | phase: :over, last_discard: nil, result: %{type: :wall_empty}},
+          :wall_empty
+        )
 
       [tile | rest] ->
         next_id = next_player_id(state.players, state.turn || elem(state.last_discard, 0))
@@ -712,7 +721,10 @@ defmodule Mahjong.Game do
   defp draw_for_kong(state) do
     case state.tiles do
       [] ->
-        %{state | phase: :over, last_discard: nil, result: %{type: :wall_empty}}
+        put_event(
+          %{state | phase: :over, last_discard: nil, result: %{type: :wall_empty}},
+          :wall_empty
+        )
 
       [tile | rest] ->
         player = find_player(state, state.turn)
@@ -817,5 +829,14 @@ defmodule Mahjong.Game do
     Enum.map(players, fn p -> if p.id == player.id, do: player, else: p end)
   end
 
-  defp broadcast(state), do: Mahjong.broadcast("games:#{state.id}", {:game_update, state})
+  # 广播牌局状态与本次动作产生的音效事件；返回已清空事件的状态（调用方需重绑）
+  defp broadcast(state, extra_events \\ []) do
+    events = extra_events ++ Map.get(state, :events, [])
+    state = Map.put(state, :events, [])
+    Mahjong.broadcast("games:#{state.id}", {:game_update, state, events})
+    state
+  end
+
+  # 结算路径内部暂存动作事件，随同一次调用的广播发出
+  defp put_event(state, event), do: Map.update(state, :events, [event], &(&1 ++ [event]))
 end
