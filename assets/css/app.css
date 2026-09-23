@@ -782,7 +782,16 @@ body {
 .opening-credit {
   margin-top: 0.15rem;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.legal-note {
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--bone-faint);
 }
 
 .opening-title {
@@ -1035,7 +1044,9 @@ body {
   padding-top: 1.2rem;
   border-top: 1px solid rgb(194 163 107 / 0.14);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .author-links {

@@ -77,7 +77,30 @@ fly deploy
 — the mahjong tile image assets ([麻雀の画像・素材 -
 来夢来人](https://www.civillink.net/fsozai/majan.html)) used across the
 game and this project's branding come from their wonderful free asset
-collection.
+collection. If you redeploy this project publicly, review the source
+site's terms of use for the tile artwork.
+
+- Sound effects and voice clips under `priv/static/sounds/` are generated
+  for this project (synthesized placeholders — the voice clips are system-TTS
+  Mandarin, standing in for future Changsha-dialect recordings). If you
+  replace them with real recordings, make sure you have the speakers'
+  permission.
+- Avatars are generated locally by
+  [minidenticons](https://github.com/laurentpayot/minidenticons) (MIT).
 
 Built with [Phoenix LiveView](https://www.phoenixframework.org/) and
 [Tailwind CSS](https://tailwindcss.com/).
+
+## Legal notice / 合规与免责声明
+
+- 本项目为个人学习与技术研究之作，仅供交流演示，不以任何形式商业运营。
+- 本项目不提供、不支持真实货币充值、兑换、提现或任何博彩功能；请勿将其用于
+  任何赌博或违法违规用途，由此产生的后果由使用者自行承担。
+- 玩法实现基于长沙地方麻将规则的民间约定，仅供教学演示，与任何商业棋牌平台
+  无关。
+- 本项目按 [MIT License](LICENSE) 开源，并附有非约束性的用途补充说明。
+- 请合理安排时间，未成年人请在监护人陪同下娱乐。
+
+> This is a personal, non-commercial project built for learning and
+> demonstration only. It does not include, and must not be used for, any
+> real-money wagering, prize, or gambling functionality of any kind.

@@ -106,4 +106,13 @@ defmodule MahjongWeb.Layouts do
     </span>
     """
   end
+
+  @doc """
+  合规声明：非商业用途与禁止赌博提示。用于页脚与候局铭牌。
+  """
+  def legal_note(assigns) do
+    ~H"""
+    <p class="legal-note">本游戏仅供学习交流 · 禁止用于任何赌博或商业用途</p>
+    """
+  end
 end
