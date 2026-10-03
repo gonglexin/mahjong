@@ -152,7 +152,8 @@ defmodule Mahjong.Rules do
           258 -> value in [2, 5, 8]
         end
 
-      pair_ok? and counts |> Map.update!(pair, &(&1 - 2)) |> decompose_melds?(sets_needed, pair_rule)
+      pair_ok? and
+        counts |> Map.update!(pair, &(&1 - 2)) |> decompose_melds?(sets_needed, pair_rule)
     end)
   end
 
